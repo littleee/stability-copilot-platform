@@ -15,11 +15,8 @@
     "outDir": "./dist"
   },
   "include": [
-    "packages/sdk-core/src/**/*.ts",
-    "packages/widget/src/**/*.ts",
-    "packages/react-demo/src/**/*.ts",
-    "packages/react-demo/src/**/*.tsx",
-    "apps/diagnostic-agent/src/**/*.ts"
+    "packages/devlens/src/**/*.ts",
+    "packages/devlens/src/**/*.tsx"
   ],
   "exclude": [
     "node_modules",
