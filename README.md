@@ -1,32 +1,85 @@
-# DevLens Workspace
+# DevPilot
 
-This repository is the main workspace for the new DevLens frontend package.
+`@littleee/devpilot` is a page-native frontend copilot for turning what happens in the browser into actionable engineering work.
 
-Current focus:
+The long-term goal is a single workflow that can:
 
-- `devlens`: a page-native development toolbar
-- annotation-first interaction
-- page overlays, markers, popups, and session panels
-- separate annotation and stability modes
+- annotate real UI directly on the page
+- capture JavaScript and stability issues with page context
+- connect browser observations to local code through MCP
+- hand structured tasks to AI tools for assisted or automated fixes
 
-The old stability-copilot drawer path has been removed from the mainline of this repo.
+Today, the repository ships the first foundation of that workflow: a browser-native annotation toolbar called `DevLens`.
 
-## Current Scope
+## What Exists Today
 
-At the moment this workspace contains:
+Current `v0.1.x` capabilities:
 
-- `packages/devlens`: the browser toolbar package
-- roadmap and product docs for the next `devlens-mcp` phase
+- floating in-page toolbar mounted through a Shadow DOM host
+- element, text, and area annotations created directly on the live page
+- local annotation state with status transitions such as `pending`, `acknowledged`, `resolved`, and `dismissed`
+- session panel for reviewing open and closed annotations
+- structured export for sending page feedback to AI coding tools
 
-The local MCP bridge is planned next, but is not the current implementation focus.
+This makes the current package useful as a lightweight page feedback layer even before MCP and automatic remediation land.
 
-See the roadmap:
+## Where It Is Going
 
-- [DEVLENS_ROADMAP.md](/Users/didi/project/stability-copilot-platform/DEVLENS_ROADMAP.md)
+DevPilot is being built toward a broader frontend incident and repair workflow:
+
+- MCP-backed workspace linking from browser context to local source files
+- stability observation for runtime errors, request failures, and incident grouping
+- richer session history that can include AI replies and code actions
+- AI-assisted and eventually automated fix loops for selected classes of issues
+
+## Package
+
+The published npm package is:
+
+```bash
+npm install @littleee/devpilot
+```
+
+Right now the package exports the `DevLens` mounting API and UI components.
+
+## Quick Start
+
+Zero-config mount:
+
+```ts
+import { mountDevLens } from "@littleee/devpilot";
+
+mountDevLens();
+```
+
+React:
+
+```tsx
+import { DevLens } from "@littleee/devpilot";
+
+export function App() {
+  return (
+    <>
+      <YourApp />
+      <DevLens />
+    </>
+  );
+}
+```
+
+## Workspace
+
+Current workspace contents:
+
+- `packages/devlens`: the published browser toolbar package behind `@littleee/devpilot`
 
 ## Development
 
-- Node.js 20 or newer is currently required.
+- Node.js 20 or newer is required.
 - Install dependencies with `npm install`.
-- Run type checks with `npm run check`.
-- Run a build with `npm run build`.
+- Build with `npm run build`.
+- Type-check with `npm run check`.
+
+## License
+
+MIT. See [LICENSE](/Users/littleee/project/stability-copilot-platform/LICENSE).
