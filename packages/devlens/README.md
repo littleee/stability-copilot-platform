@@ -5,7 +5,7 @@
 ## Install
 
 ```bash
-npm install devlens
+npm install @littleee/devpilot
 ```
 
 `react` and `react-dom` are required peer dependencies.
@@ -13,7 +13,7 @@ npm install devlens
 ## Zero-config Mount
 
 ```ts
-import { mountDevLens } from "devlens";
+import { mountDevLens } from "@littleee/devpilot";
 
 mountDevLens();
 ```
@@ -21,7 +21,7 @@ mountDevLens();
 ## React
 
 ```tsx
-import { DevLens } from "devlens";
+import { DevLens } from "@littleee/devpilot";
 
 export function App() {
   return (
@@ -37,7 +37,7 @@ export function App() {
 
 ```ts
 import { createApp } from "vue";
-import { mountDevLens } from "devlens";
+import { mountDevLens } from "@littleee/devpilot";
 import App from "./App.vue";
 
 createApp(App).mount("#app");

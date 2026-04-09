@@ -11,9 +11,9 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace devlens",
+    "build": "npm run build --workspace @littleee/devpilot",
     "test": "npm run build",
-    "check": "npm run check --workspace devlens"
+    "check": "npm run check --workspace @littleee/devpilot"
   },
   "dependencies": {
     "react": "^18.2.0",

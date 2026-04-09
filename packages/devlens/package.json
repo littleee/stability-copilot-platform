@@ -1,14 +1,34 @@
 {
-  "name": "devlens",
+  "name": "@littleee/devpilot",
   "version": "0.1.0",
   "description": "A page-native annotation toolbar for collecting UI feedback and exporting it for AI-assisted code changes.",
+  "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/littleee/stability-copilot-platform.git",
+    "directory": "packages/devlens"
+  },
+  "homepage": "https://github.com/littleee/stability-copilot-platform/tree/main/packages/devlens",
+  "bugs": {
+    "url": "https://github.com/littleee/stability-copilot-platform/issues"
+  },
+  "keywords": [
+    "annotation",
+    "browser-toolbar",
+    "feedback",
+    "react",
+    "ui"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     "dist",
