@@ -50,7 +50,13 @@ export function DevPilot(props: DevPilotMountOptions): null {
   useEffect(() => {
     const controller = mountDevPilot(props);
     return () => controller.destroy();
-  }, [props.defaultOpen, props.endpoint]);
+  }, [
+    props.defaultOpen,
+    props.endpoint,
+    props.features?.stability,
+    props.features?.mcp,
+    props.onRepairRequest,
+  ]);
 
   return null;
 }
@@ -61,10 +67,40 @@ export {
   formatDevPilotExportMarkdown,
   getAnnotationKind,
 } from "./output";
-export type { DevPilotAnnotation, DevPilotController, DevPilotMode, DevPilotMountOptions } from "./types";
+export {
+  createDevPilotStabilityExportPayload,
+  formatDevPilotStabilityExportJson,
+  formatDevPilotStabilityExportMarkdown,
+  createDevPilotStabilityRepairPayload,
+  formatDevPilotStabilityRepairMarkdown,
+} from "./stability-output";
+export type {
+  DevPilotAnnotation,
+  DevPilotController,
+  DevPilotFeatureFlags,
+  DevPilotMode,
+  DevPilotMountOptions,
+  DevPilotRepairRequest,
+  ResolvedDevPilotFeatureFlags,
+} from "./types";
 export type {
   DevPilotExportAnnotation,
   DevPilotExportPageContext,
   DevPilotExportPayload,
   DevPilotExportSummary,
 } from "./output";
+export type {
+  DevPilotStabilityContextSnapshot,
+  DevPilotRepairRequestRecord,
+  DevPilotRepairRequestStatus,
+  DevPilotStabilityItem,
+  DevPilotStabilitySeverity,
+  DevPilotStabilityStatus,
+} from "./types";
+export type {
+  DevPilotStabilityExportItem,
+  DevPilotStabilityExportPageContext,
+  DevPilotStabilityExportPayload,
+  DevPilotStabilityExportSummary,
+  DevPilotStabilityRepairPayload,
+} from "./stability-output";

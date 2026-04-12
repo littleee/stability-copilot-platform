@@ -1,177 +1,103 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  collectAreaMatches,
+  describeAreaDraftPreview,
+  describeCommittedAreaSelection,
+  describeElement,
+  HOST_ATTR,
+  isWithinDevPilotEvent,
+  isWithinDevPilotTarget,
+  normalizeRect,
+  ROOT_ATTR,
+  toRect,
+} from "./annotation/area-selection";
+import {
+  mergeRemoteAnnotations,
+  sortAnnotationsByUpdatedAt,
+} from "./annotation/state";
+import { startAutoObservation } from "./observation/collectors";
+import {
   createDevPilotExportPayload,
   formatDevPilotExportMarkdown,
   getAnnotationKind,
 } from "./output";
 import {
-  clearSessionId,
+  mergeRemoteRepairRequests,
+  sortRepairRequestsByUpdatedAt,
+} from "./repair/state";
+import { useRemoteSessionSync } from "./hooks/remote-session-sync";
+import { useScrollTick } from "./shared/hooks";
+import {
+  clampFloatingPosition,
+  copyTextToClipboard,
+  createId,
+  createScopedId,
+  ensurePopupPositionFromPoint,
+  formatTime,
+  getDefaultFloatingPosition,
+  trimObservationText,
+} from "./shared/runtime";
+import {
+  AnnotateIcon,
+  CollapseIcon,
+  DevPilotGlyph,
+  SessionIcon,
+  StabilityIcon,
+} from "./ui/icons";
+import { SessionPanel } from "./ui/session-panel";
+import { StabilityPanel } from "./ui/stability-panel";
+import {
+  createDevPilotStabilityExportPayload,
+  formatDevPilotStabilityExportMarkdown,
+  createDevPilotStabilityRepairPayload,
+  formatDevPilotStabilityRepairMarkdown,
+} from "./stability-output";
+import {
+  DevPilotStabilityDraft,
+  getDefaultStabilityDraft,
+  mergeRemoteStabilityItems,
+  sortStabilityItemsByUpdatedAt,
+} from "./stability/state";
+import {
   loadAnnotations,
   loadFloatingPosition,
-  loadSessionId,
+  loadObservationEnabled,
+  loadStabilityItems,
   saveAnnotations,
   saveFloatingPosition,
-  saveSessionId,
+  saveObservationEnabled,
+  saveStabilityItems,
 } from "./storage";
 import {
+  createRemoteRepairRequest,
+  deleteRemoteStabilityItem,
   deleteRemoteAnnotation,
-  ensureRemoteSession,
-  getRemoteSession,
+  syncRemoteStabilityItem,
   syncRemoteAnnotation,
+  updateRemoteStabilityItem,
   updateRemoteAnnotation,
 } from "./sync";
 import type {
   DevPilotAnnotation,
   DevPilotAnnotationStatus,
+  DevPilotRepairRequestRecord,
+  DevPilotRepairRequestStatus,
+  DevPilotStabilityItem,
+  DevPilotStabilitySeverity,
+  DevPilotStabilityStatus,
   DevPilotMode,
   DevPilotMountOptions,
+  DevPilotRepairRequest,
   DevPilotRect,
   DevPilotSelection,
 } from "./types";
 import {
   isClosedDevPilotAnnotationStatus,
+  isDevPilotStabilitySeverity,
   isOpenDevPilotAnnotationStatus,
+  resolveDevPilotFeatures,
 } from "./types";
-
-const ROOT_ATTR = "data-devpilot-root";
-const HOST_ATTR = "data-devpilot-host";
-const AREA_MATCH_SELECTOR = [
-  "button",
-  "a",
-  "input",
-  "select",
-  "textarea",
-  "img",
-  "p",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "li",
-  "label",
-  "td",
-  "th",
-  "[role='button']",
-  "[role='link']",
-  "[role='tab']",
-  "[role='checkbox']",
-  "[role='radio']",
-  "[role='option']",
-  "[role='switch']",
-  "[role='combobox']",
-  "[role='cell']",
-  "[role='row']",
-].join(", ");
-const AREA_PREVIEW_SELECTOR = [
-  "button",
-  "a",
-  "input",
-  "select",
-  "textarea",
-  "img",
-  "p",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "li",
-  "label",
-  "td",
-  "th",
-  "div",
-  "span",
-  "section",
-  "article",
-  "aside",
-  "nav",
-  "[role='button']",
-  "[role='link']",
-  "[role='tab']",
-  "[role='checkbox']",
-  "[role='radio']",
-  "[role='option']",
-  "[role='switch']",
-  "[role='combobox']",
-].join(", ");
-const AREA_NESTED_CONTENT_SELECTOR = [
-  "p",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "button",
-  "a",
-  "input",
-  "select",
-  "textarea",
-  "label",
-  "td",
-  "th",
-  "[role='button']",
-  "[role='link']",
-  "[role='tab']",
-  "[role='checkbox']",
-  "[role='radio']",
-  "[role='option']",
-  "[role='switch']",
-  "[role='combobox']",
-].join(", ");
-const AREA_PREVIEW_MEANINGFUL_TAGS = new Set([
-  "button",
-  "a",
-  "input",
-  "select",
-  "textarea",
-  "img",
-  "p",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "li",
-  "label",
-  "td",
-  "th",
-  "section",
-  "article",
-  "aside",
-  "nav",
-]);
-const AREA_INTERACTIVE_ROLES = new Set([
-  "button",
-  "link",
-  "tab",
-  "checkbox",
-  "radio",
-  "option",
-  "switch",
-  "combobox",
-  "cell",
-  "row",
-]);
-const AREA_SEMANTIC_TAGS = new Set([
-  "button",
-  "input",
-  "select",
-  "textarea",
-  "label",
-  "a",
-  "img",
-  "td",
-  "th",
-  "li",
-]);
-const AREA_FRAGMENT_PATTERN =
-  /(?:^|[\s:_-])(icon|icons|suffix|prefix|thumb|track|handle|arrow|caret|clear|close|loading|spinner|addon|append|prepend|indicator|decorator)(?:$|[\s:_-])/i;
 
 const styles = `
   :host, * {
@@ -935,6 +861,11 @@ const styles = `
     color: #fbbf24;
   }
 
+  .dl-status-pill[data-status="diagnosing"] {
+    background: rgba(217, 119, 6, 0.18);
+    color: #fbbf24;
+  }
+
   .dl-status-pill[data-status="dismissed"] {
     background: rgba(107, 114, 128, 0.2);
     color: #d1d5db;
@@ -1130,6 +1061,158 @@ const styles = `
     color: rgba(255, 255, 255, 0.58);
   }
 
+  .dl-severity-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: rgba(245, 158, 11, 0.18);
+    color: #fbbf24;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .dl-severity-pill[data-severity="low"] {
+    background: rgba(59, 130, 246, 0.18);
+    color: #93c5fd;
+  }
+
+  .dl-severity-pill[data-severity="medium"] {
+    background: rgba(245, 158, 11, 0.18);
+    color: #fbbf24;
+  }
+
+  .dl-severity-pill[data-severity="high"] {
+    background: rgba(249, 115, 22, 0.18);
+    color: #fdba74;
+  }
+
+  .dl-severity-pill[data-severity="critical"] {
+    background: rgba(239, 68, 68, 0.18);
+    color: #fca5a5;
+  }
+
+  .dl-stability-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .dl-stability-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 132px;
+    gap: 10px;
+  }
+
+  .dl-stability-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .dl-stability-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .dl-stability-input,
+  .dl-stability-select,
+  .dl-stability-textarea {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #ffffff;
+    font: inherit;
+    outline: none;
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease,
+      background 120ms ease;
+  }
+
+  .dl-stability-input,
+  .dl-stability-select {
+    height: 40px;
+    padding: 0 12px;
+  }
+
+  .dl-stability-textarea {
+    min-height: 82px;
+    padding: 10px 12px;
+    resize: vertical;
+    line-height: 1.6;
+  }
+
+  .dl-stability-input::placeholder,
+  .dl-stability-textarea::placeholder {
+    color: rgba(255, 255, 255, 0.34);
+  }
+
+  .dl-stability-input:focus,
+  .dl-stability-select:focus,
+  .dl-stability-textarea:focus {
+    border-color: rgba(59, 130, 246, 0.72);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .dl-stability-form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .dl-stability-form-actions-left,
+  .dl-stability-form-actions-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .dl-stability-subgrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .dl-stability-context-note {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.54);
+  }
+
+  .dl-stability-title {
+    margin: 8px 0 4px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.92);
+    word-break: break-word;
+  }
+
+  .dl-stability-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .dl-stability-summary {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.58);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
   @keyframes dl-toolbar-enter {
     from {
       opacity: 0;
@@ -1195,758 +1278,62 @@ const styles = `
     .dl-detail-meta {
       grid-template-columns: 1fr;
     }
+
+    .dl-stability-grid,
+    .dl-stability-subgrid {
+      grid-template-columns: 1fr;
+    }
   }
 `;
 
-function ensureWithinViewport(rect: DevPilotRect, width: number, height: number): { left: number; top: number } {
-  const margin = 16;
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-
-  let left = rect.left;
-  let top = rect.top + rect.height + 12;
-
-  if (left + width + margin > viewportWidth) {
-    left = viewportWidth - width - margin;
-  }
-  if (left < margin) {
-    left = margin;
-  }
-
-  if (top + height + margin > viewportHeight) {
-    top = rect.top - height - 12;
-  }
-  if (top < margin) {
-    top = Math.min(viewportHeight - height - margin, margin);
-  }
-
-  return { left, top };
-}
-
-function ensurePopupPositionFromPoint(pageX: number, pageY: number, width: number, height: number): { left: number; top: number } {
-  const anchorRect: DevPilotRect = {
-    left: pageX - window.scrollX - 14,
-    top: pageY - window.scrollY - 14,
-    width: 28,
-    height: 28,
-  };
-
-  return ensureWithinViewport(anchorRect, width, height);
-}
-
-function toRect(rect: DOMRect): DevPilotRect {
-  return {
-    left: rect.left,
-    top: rect.top,
-    width: rect.width,
-    height: rect.height,
-  };
-}
-
-function normalizeRect(startX: number, startY: number, endX: number, endY: number): DevPilotRect {
-  const left = Math.min(startX, endX);
-  const top = Math.min(startY, endY);
-
-  return {
-    left,
-    top,
-    width: Math.abs(endX - startX),
-    height: Math.abs(endY - startY),
-  };
-}
-
-function rectsIntersect(a: DevPilotRect, b: DevPilotRect): boolean {
-  return !(
-    a.left + a.width < b.left ||
-    b.left + b.width < a.left ||
-    a.top + a.height < b.top ||
-    b.top + b.height < a.top
-  );
-}
-
-function getRectArea(rect: DevPilotRect): number {
-  return Math.max(0, rect.width) * Math.max(0, rect.height);
-}
-
-function getRectCenter(rect: DevPilotRect): { x: number; y: number } {
-  return {
-    x: rect.left + rect.width / 2,
-    y: rect.top + rect.height / 2,
-  };
-}
-
-function isPointInsideRect(point: { x: number; y: number }, rect: DevPilotRect): boolean {
-  return (
-    point.x >= rect.left &&
-    point.x <= rect.left + rect.width &&
-    point.y >= rect.top &&
-    point.y <= rect.top + rect.height
-  );
-}
-
-function getOverlapArea(a: DevPilotRect, b: DevPilotRect): number {
-  const overlapX = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
-  const overlapY = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
-
-  if (overlapX <= 0 || overlapY <= 0) {
-    return 0;
-  }
-
-  return overlapX * overlapY;
-}
-
-function isWithinDevPilotTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element &&
-    Boolean(
-      target.closest(`[${ROOT_ATTR}]`) ||
-        target.closest(`[${HOST_ATTR}]`),
-    )
-  );
-}
-
-function isWithinDevPilotEvent(event: Event): boolean {
-  if (typeof event.composedPath === "function") {
-    return event.composedPath().some((node) =>
-      node instanceof Element &&
-      (node.hasAttribute(ROOT_ATTR) || node.hasAttribute(HOST_ATTR)),
-    );
-  }
-
-  return isWithinDevPilotTarget(event.target);
-}
-
-function describeElement(element: HTMLElement): { elementName: string; elementPath: string; nearbyText?: string } {
-  const tagName = element.tagName.toLowerCase();
-  const role = element.getAttribute("role");
-  const text = (element.textContent || "").trim().replace(/\s+/g, " ");
-  const label = [tagName, role ? `(${role})` : "", text ? ` ${text.slice(0, 36)}` : ""].join("").trim();
-
-  const path = [];
-  let current: HTMLElement | null = element;
-  let depth = 0;
-  while (current && depth < 5) {
-    const part = current.tagName.toLowerCase();
-    const id = current.id ? `#${current.id}` : "";
-    const className = current.classList.length > 0 ? `.${Array.from(current.classList).slice(0, 2).join(".")}` : "";
-    path.unshift(`${part}${id}${className}`);
-    current = current.parentElement;
-    depth += 1;
-  }
-
-  return {
-    elementName: label || tagName,
-    elementPath: path.join(" > "),
-    nearbyText: text || undefined,
-  };
-}
-
-function getNormalizedElementText(element: HTMLElement): string {
-  return (element.textContent || "").trim().replace(/\s+/g, " ");
-}
-
-function containsRect(outer: DevPilotRect, inner: DevPilotRect): boolean {
-  return (
-    outer.left <= inner.left &&
-    outer.top <= inner.top &&
-    outer.left + outer.width >= inner.left + inner.width &&
-    outer.top + outer.height >= inner.top + inner.height
-  );
-}
-
-function buildAreaPreviewPoints(rect: DevPilotRect): Array<[number, number]> {
-  const left = rect.left;
-  const top = rect.top;
-  const right = rect.left + rect.width;
-  const bottom = rect.top + rect.height;
-  const midX = (left + right) / 2;
-  const midY = (top + bottom) / 2;
-
-  return [
-    [left, top],
-    [right, top],
-    [left, bottom],
-    [right, bottom],
-    [midX, midY],
-    [midX, top],
-    [midX, bottom],
-    [left, midY],
-    [right, midY],
-  ].map(([x, y]) => [
-    Math.max(0, Math.min(window.innerWidth - 1, x)),
-    Math.max(0, Math.min(window.innerHeight - 1, y)),
-  ]);
-}
-
-function isAreaInteractiveLikeElement(element: HTMLElement): boolean {
-  const role = element.getAttribute("role");
-  const tabIndex = element.getAttribute("tabindex");
-  const className = typeof element.className === "string" ? element.className : "";
-
-  return (
-    Boolean(role && AREA_INTERACTIVE_ROLES.has(role)) ||
-    element.onclick !== null ||
-    element.hasAttribute("data-clickable") ||
-    (tabIndex !== null && tabIndex !== "-1") ||
-    /(?:^|[\s:_-])(btn|button|switch|toggle|tab|menu-item|clickable)(?:$|[\s:_-])/i.test(className)
-  );
-}
-
-function isAreaIgnoredFragment(element: HTMLElement): boolean {
-  if (
-    element.getAttribute("aria-hidden") === "true" ||
-    element.getAttribute("role") === "presentation"
-  ) {
-    return true;
-  }
-
-  const className = typeof element.className === "string" ? element.className : "";
-  if (AREA_FRAGMENT_PATTERN.test(className) || AREA_FRAGMENT_PATTERN.test(element.id || "")) {
-    return true;
-  }
-
-  const tagName = element.tagName.toLowerCase();
-  return ["svg", "path", "i"].includes(tagName) && !getNormalizedElementText(element);
-}
-
-function hasNestedAreaContent(element: HTMLElement): boolean {
-  return Boolean(element.querySelector(AREA_NESTED_CONTENT_SELECTOR));
-}
-
-function countMeaningfulAreaChildren(element: HTMLElement): number {
-  return Array.from(element.children).filter((child) => {
-    if (!(child instanceof HTMLElement)) {
-      return false;
-    }
-
-    const tagName = child.tagName.toLowerCase();
-    const text = getNormalizedElementText(child);
-    return (
-      AREA_PREVIEW_MEANINGFUL_TAGS.has(tagName) ||
-      Boolean(text) ||
-      Boolean(child.querySelector(AREA_MATCH_SELECTOR)) ||
-      isAreaInteractiveLikeElement(child)
-    );
-  }).length;
-}
-
-function isAreaStructuredContainer(
-  element: HTMLElement,
-  elementRect: DevPilotRect,
-  selectionRect: DevPilotRect,
-): boolean {
-  const tagName = element.tagName.toLowerCase();
-
-  if (!["div", "section", "article", "aside", "nav", "form"].includes(tagName)) {
-    return false;
-  }
-
-  if (elementRect.width < 120 || elementRect.height < 44) {
-    return false;
-  }
-
-  if (
-    elementRect.width > window.innerWidth * 0.96 ||
-    elementRect.height > window.innerHeight * 0.82
-  ) {
-    return false;
-  }
-
-  if (getRectArea(elementRect) >= getRectArea(selectionRect) * 0.98) {
-    return false;
-  }
-
-  const meaningfulChildren = countMeaningfulAreaChildren(element);
-  const descendantCount = element.querySelectorAll(AREA_MATCH_SELECTOR).length;
-  const hasTableLikeDescendant = Boolean(
-    element.querySelector("table, thead, tbody, tr"),
-  );
-
-  return (
-    meaningfulChildren >= 2 &&
-    (descendantCount >= 2 || hasTableLikeDescendant)
-  );
-}
-
-function shouldIncludeAreaPreviewElement(
-  element: HTMLElement,
-  elementRect: DevPilotRect,
-  selectionRect: DevPilotRect,
-): boolean {
-  if (isAreaIgnoredFragment(element)) {
-    return false;
-  }
-
-  const tagName = element.tagName.toLowerCase();
-  const text = getNormalizedElementText(element);
-  const isInteractive = isAreaInteractiveLikeElement(element);
-
-  if (AREA_PREVIEW_MEANINGFUL_TAGS.has(tagName)) {
-    return true;
-  }
-
-  if (tagName === "div" || tagName === "span") {
-    if ((Boolean(text) || isInteractive) && !hasNestedAreaContent(element)) {
-      return true;
-    }
-
-    return isAreaStructuredContainer(element, elementRect, selectionRect);
-  }
-
-  return isAreaStructuredContainer(element, elementRect, selectionRect);
-}
-
-function shouldIncludeCommittedAreaElement(element: HTMLElement): boolean {
-  if (isAreaIgnoredFragment(element)) {
-    return false;
-  }
-
-  const tagName = element.tagName.toLowerCase();
-  const role = element.getAttribute("role");
-
-  if (AREA_SEMANTIC_TAGS.has(tagName) || (role && AREA_INTERACTIVE_ROLES.has(role))) {
-    return true;
-  }
-
-  if (tagName === "div" || tagName === "span") {
-    return isAreaInteractiveLikeElement(element) && !hasNestedAreaContent(element);
-  }
-
-  return false;
-}
-
-function collectAreaPreviewRects(rect: DevPilotRect): DevPilotRect[] {
-  const left = rect.left;
-  const top = rect.top;
-  const right = rect.left + rect.width;
-  const bottom = rect.top + rect.height;
-  const candidateElements = new Set<HTMLElement>();
-  const samplePoints = buildAreaPreviewPoints(rect);
-
-  samplePoints.forEach(([x, y]) => {
-    document.elementsFromPoint(x, y).forEach((element) => {
-      if (!(element instanceof HTMLElement)) {
-        return;
-      }
-      candidateElements.add(element);
-    });
-  });
-
-  document.querySelectorAll<HTMLElement>(AREA_PREVIEW_SELECTOR).forEach((element) => {
-    const elementRect = toRect(element.getBoundingClientRect());
-    const center = getRectCenter(elementRect);
-    const overlapArea = getOverlapArea(rect, elementRect);
-    const overlapRatio = overlapArea / Math.max(1, getRectArea(elementRect));
-
-    if (isPointInsideRect(center, rect) || overlapRatio > 0.5) {
-      candidateElements.add(element);
-    }
-  });
-
-  const allMatching: DevPilotRect[] = [];
-  const sortedCandidates = Array.from(candidateElements).sort((a, b) => {
-    const aRect = toRect(a.getBoundingClientRect());
-    const bRect = toRect(b.getBoundingClientRect());
-    return getRectArea(bRect) - getRectArea(aRect);
-  });
-
-  sortedCandidates.forEach((element) => {
-    if (element.closest(`[${ROOT_ATTR}]`) || element.closest(`[${HOST_ATTR}]`)) {
-      return;
-    }
-
-    const elementRect = toRect(element.getBoundingClientRect());
-    if (
-      elementRect.width > window.innerWidth * 0.8 &&
-      elementRect.height > window.innerHeight * 0.5
-    ) {
-      return;
-    }
-    if (elementRect.width < 10 || elementRect.height < 10) {
-      return;
-    }
-    if (!rectsIntersect(rect, elementRect)) {
-      return;
-    }
-    if (!shouldIncludeAreaPreviewElement(element, elementRect, rect)) {
-      return;
-    }
-
-    const dominated = allMatching.some((existingRect) =>
-      containsRect(existingRect, elementRect),
-    );
-
-    if (!dominated) {
-      allMatching.push(elementRect);
-    }
-  });
-
-  return allMatching
-    .sort((a, b) => {
-      if (Math.abs(a.top - b.top) > 8) {
-        return a.top - b.top;
-      }
-
-      if (Math.abs(a.left - b.left) > 8) {
-        return a.left - b.left;
-      }
-
-      return getRectArea(a) - getRectArea(b);
-    });
-}
-
-function collectAreaMatches(
-  rect: DevPilotRect,
-): Array<{ element: HTMLElement; rect: DevPilotRect }> {
-  const allMatching: Array<{ element: HTMLElement; rect: DevPilotRect }> = [];
-  const selector = `${AREA_MATCH_SELECTOR}, div, span`;
-
-  document.querySelectorAll<HTMLElement>(selector).forEach((element) => {
-    if (element.closest(`[${ROOT_ATTR}]`) || element.closest(`[${HOST_ATTR}]`)) {
-      return;
-    }
-
-    const elementRect = toRect(element.getBoundingClientRect());
-    if (
-      elementRect.width > window.innerWidth * 0.8 &&
-      elementRect.height > window.innerHeight * 0.5
-    ) {
-      return;
-    }
-    if (elementRect.width < 10 || elementRect.height < 10) {
-      return;
-    }
-    if (!rectsIntersect(rect, elementRect)) {
-      return;
-    }
-    if (!shouldIncludeCommittedAreaElement(element)) {
-      return;
-    }
-
-    allMatching.push({ element, rect: elementRect });
-  });
-
-  return allMatching
-    .filter(
-      ({ element }) =>
-        !allMatching.some(
-          ({ element: other }) => other !== element && element.contains(other),
-        ),
-    )
-    .sort((a, b) => {
-      if (Math.abs(a.rect.top - b.rect.top) > 8) {
-        return a.rect.top - b.rect.top;
-      }
-
-      if (Math.abs(a.rect.left - b.rect.left) > 8) {
-        return a.rect.left - b.rect.left;
-      }
-
-      return getRectArea(a.rect) - getRectArea(b.rect);
-    });
-}
-
-function getUnionRect(rects: DevPilotRect[]): DevPilotRect | null {
-  if (rects.length === 0) {
-    return null;
-  }
-
-  const left = Math.min(...rects.map((item) => item.left));
-  const top = Math.min(...rects.map((item) => item.top));
-  const right = Math.max(...rects.map((item) => item.left + item.width));
-  const bottom = Math.max(...rects.map((item) => item.top + item.height));
-
-  return {
-    left,
-    top,
-    width: right - left,
-    height: bottom - top,
-  };
-}
-
-function describeAreaDraftPreview(rect: DevPilotRect): {
-  matchRects: DevPilotRect[];
-  matchCount: number;
-} {
-  const matchRects = collectAreaPreviewRects(rect);
-
-  return {
-    matchRects,
-    matchCount: matchRects.length,
-  };
-}
-
-function describeCommittedAreaSelection(rect: DevPilotRect): {
-  rect: DevPilotRect;
-  elementName: string;
-  elementPath: string;
-  nearbyText?: string;
-  relatedElements?: string[];
-  matchRects: DevPilotRect[];
-  matchCount: number;
-} {
-  const matches = collectAreaMatches(rect);
-  const snappedRect = getUnionRect(matches.map((item) => item.rect)) || rect;
-
-  const relatedElements = Array.from(
-    new Set(
-      matches
-        .map(({ element }) => describeElement(element).elementName)
-        .filter(Boolean),
-    ),
-  ).slice(0, 6);
-
-  const kindCounter = new Map<string, number>();
-  matches.forEach(({ element }) => {
-    const tagName = element.tagName.toLowerCase();
-    const role = element.getAttribute("role");
-    const token = role ? `${tagName}(${role})` : tagName;
-    kindCounter.set(token, (kindCounter.get(token) || 0) + 1);
-  });
-
-  const groupedKinds = Array.from(kindCounter.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([token, count]) => `${token} ×${count}`);
-
-  const nearbyText = Array.from(
-    new Set(
-      matches
-        .map(({ element }) => (element.textContent || "").trim().replace(/\s+/g, " "))
-        .filter((value) => value.length > 0),
-    ),
-  )
-    .slice(0, 3)
-    .join(" · ");
-
-  return {
-    rect: snappedRect,
-    elementName: matches.length > 0 ? `区域标注 · ${matches.length} 个元素` : "区域标注",
-    elementPath:
-      groupedKinds.length > 0
-        ? groupedKinds.join(" · ")
-        : `区域 ${Math.round(snappedRect.width)}×${Math.round(snappedRect.height)}`,
-    nearbyText: nearbyText || undefined,
-    relatedElements,
-    matchRects: matches.map((item) => item.rect),
-    matchCount: matches.length,
-  };
-}
-
-function formatTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString("zh-CN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
-function createId(): string {
-  return `ann_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function getAnnotationStatusLabel(status: DevPilotAnnotationStatus): string {
-  switch (status) {
-    case "acknowledged":
-      return "处理中";
-    case "resolved":
-      return "已解决";
-    case "dismissed":
-      return "已忽略";
-    default:
-      return "待处理";
-  }
-}
+const AUTO_OBSERVATION_DEDUPE_MS = 30_000;
 
 function stopEditableEventPropagation(event: React.SyntheticEvent<HTMLElement>): void {
   // Keep host-page global shortcuts from stealing keystrokes out of DevPilot inputs.
   event.stopPropagation();
 }
 
-async function copyTextToClipboard(text: string): Promise<boolean> {
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      // Fall back to a legacy copy path below.
-    }
-  }
-
-  if (typeof document === "undefined") {
-    return false;
-  }
-
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.setAttribute("readonly", "true");
-  textarea.style.position = "fixed";
-  textarea.style.left = "-9999px";
-  textarea.style.top = "0";
-  textarea.style.opacity = "0";
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-  textarea.setSelectionRange(0, textarea.value.length);
-
-  try {
-    return document.execCommand("copy");
-  } catch {
-    return false;
-  } finally {
-    textarea.remove();
-  }
-}
-
-function sortAnnotationsByUpdatedAt(
-  annotations: DevPilotAnnotation[],
-): DevPilotAnnotation[] {
-  return [...annotations].sort((a, b) => {
-    if (b.updatedAt !== a.updatedAt) {
-      return b.updatedAt - a.updatedAt;
-    }
-
-    return b.createdAt - a.createdAt;
-  });
-}
-
-function mergeRemoteAnnotations(
-  localAnnotations: DevPilotAnnotation[],
-  remoteAnnotations: DevPilotAnnotation[],
-): DevPilotAnnotation[] {
-  const merged = new Map<string, DevPilotAnnotation>();
-
-  remoteAnnotations.forEach((annotation) => {
-    merged.set(annotation.id, annotation);
-  });
-
-  localAnnotations.forEach((annotation) => {
-    const remote = merged.get(annotation.id);
-    if (!remote || annotation.updatedAt > remote.updatedAt) {
-      merged.set(annotation.id, annotation);
-    }
-  });
-
-  return sortAnnotationsByUpdatedAt(Array.from(merged.values()));
-}
-
-function getDefaultFloatingPosition() {
-  const margin = 24;
-  const size = 44;
-  return {
-    left: Math.max(margin, window.innerWidth - margin - size),
-    top: Math.max(margin, window.innerHeight - margin - size),
-  };
-}
-
-function clampFloatingPosition(position: { left: number; top: number }, width: number, height: number) {
-  const margin = 16;
-  const maxLeft = Math.max(margin, window.innerWidth - width - margin);
-  const maxTop = Math.max(margin, window.innerHeight - height - margin);
-
-  return {
-    left: Math.min(Math.max(position.left, margin), maxLeft),
-    top: Math.min(Math.max(position.top, margin), maxTop),
-  };
-}
-
-function DevPilotGlyph() {
-  return (
-    <svg viewBox="0 0 18 18" aria-hidden="true" className="dl-launcher-glyph">
-      <circle cx="9" cy="9" r="8" fill="currentColor" opacity="0.16" />
-      <circle cx="9" cy="9" r="4" fill="currentColor" />
-      <path
-        d="M13.9 4.4L15.8 2.5M13.9 13.6l1.9 1.9M4.1 4.4L2.2 2.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function AnnotateIcon() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" className="dl-toolbar-icon">
-      <path
-        d="M3 11.9l.5-2.3L9.9 3.2a1.1 1.1 0 0 1 1.6 0l1.3 1.3a1.1 1.1 0 0 1 0 1.6L6.4 12.4 4 13z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <path d="M8.7 4.4l2.9 2.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function StabilityIcon() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" className="dl-toolbar-icon">
-      <path
-        d="M3 8h2.1l1.2-2.4L8.7 11l1.3-3h3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <rect x="2.3" y="2.3" width="11.4" height="11.4" rx="3" stroke="currentColor" strokeWidth="1.2" fill="none" opacity="0.6" />
-    </svg>
-  );
-}
-
-function SessionIcon() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" className="dl-toolbar-icon">
-      <rect x="2.4" y="2.8" width="11.2" height="8.4" rx="2" fill="none" stroke="currentColor" strokeWidth="1.3" />
-      <path d="M5 13.2l2-2h4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function CollapseIcon() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" className="dl-toolbar-icon">
-      <path d="M4 4l8 8M12 4L4 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function useScrollTick(): number {
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    const onScroll = () => setTick((value) => value + 1);
-    const onResize = () => setTick((value) => value + 1);
-
-    window.addEventListener("scroll", onScroll, true);
-    window.addEventListener("resize", onResize);
-
-    return () => {
-      window.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("resize", onResize);
-    };
-  }, []);
-
-  return tick;
-}
-
-function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
+function DevPilotApp({
+  defaultOpen = false,
+  endpoint,
+  features,
+  onRepairRequest,
+}: DevPilotMountOptions) {
   const pathname = window.location.pathname || "/";
+  const resolvedFeatures = useMemo(
+    () => resolveDevPilotFeatures(features, endpoint),
+    [endpoint, features?.mcp, features?.stability],
+  );
+  const stabilityEnabled = resolvedFeatures.stability;
+  const syncEndpoint = resolvedFeatures.mcp ? endpoint : undefined;
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [mode, setMode] = useState<DevPilotMode>("annotate");
   const [annotations, setAnnotations] = useState<DevPilotAnnotation[]>(() => loadAnnotations(pathname));
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(() => loadSessionId(pathname));
+  const [stabilityItems, setStabilityItems] = useState<DevPilotStabilityItem[]>(
+    () => (stabilityEnabled ? loadStabilityItems(pathname) : []),
+  );
   const [floatingPosition, setFloatingPosition] = useState(() => loadFloatingPosition() || getDefaultFloatingPosition());
   const [selection, setSelection] = useState<DevPilotSelection | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [stabilityEditingId, setStabilityEditingId] = useState<string | null>(null);
+  const [stabilityActiveId, setStabilityActiveId] = useState<string | null>(null);
+  const [stabilityDraft, setStabilityDraft] = useState<DevPilotStabilityDraft>(
+    getDefaultStabilityDraft,
+  );
+  const [isStabilityComposerOpen, setIsStabilityComposerOpen] = useState(false);
   const [hoverRect, setHoverRect] = useState<DevPilotRect | null>(null);
   const [areaDraftRect, setAreaDraftRect] = useState<DevPilotRect | null>(null);
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null);
   const [isTextSelectionPending, setIsTextSelectionPending] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const [stabilityCopyState, setStabilityCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const [repairRequests, setRepairRequests] = useState<DevPilotRepairRequestRecord[]>([]);
+  const [repairTargetId, setRepairTargetId] = useState<string | null>(null);
+  const [repairState, setRepairState] = useState<"idle" | "requested" | "failed">("idle");
+  const [autoObservationEnabled, setAutoObservationEnabled] = useState(() =>
+    stabilityEnabled ? loadObservationEnabled(pathname) : false,
+  );
   const scrollTick = useScrollTick();
   const openAnnotations = useMemo(
     () => annotations.filter((item) => isOpenDevPilotAnnotationStatus(item.status)),
@@ -1960,7 +1347,29 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
     () => annotations.find((item) => item.id === activeAnnotationId) || null,
     [annotations, activeAnnotationId],
   );
-  const annotationsRef = useRef<DevPilotAnnotation[]>(annotations);
+  const openStabilityItems = useMemo(
+    () => stabilityItems.filter((item) => item.status !== "resolved"),
+    [stabilityItems],
+  );
+  const resolvedStabilityItems = useMemo(
+    () => stabilityItems.filter((item) => item.status === "resolved"),
+    [stabilityItems],
+  );
+  const activeStabilityItem = useMemo(
+    () => stabilityItems.find((item) => item.id === stabilityActiveId) || null,
+    [stabilityItems, stabilityActiveId],
+  );
+  const activeRepairRequests = useMemo(() => {
+    if (!activeStabilityItem) {
+      return [];
+    }
+
+    return sortRepairRequestsByUpdatedAt(
+      repairRequests.filter((request) => request.stabilityItemId === activeStabilityItem.id),
+    );
+  }, [activeStabilityItem, repairRequests]);
+  const latestActiveRepairRequest = activeRepairRequests[0] || null;
+  const observationFingerprintRef = useRef<Map<string, number>>(new Map());
   const popupRef = useRef<HTMLTextAreaElement | null>(null);
   const toolbarRef = useRef<HTMLDivElement | HTMLButtonElement | null>(null);
   const dragRef = useRef<{
@@ -1980,118 +1389,61 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
     currentY: number;
     dragging: boolean;
   } | null>(null);
+  const {
+    annotationsRef,
+    currentSessionId,
+    currentSessionIdRef,
+  } = useRemoteSessionSync({
+    pathname,
+    syncEndpoint,
+    stabilityEnabled,
+    annotations,
+    stabilityItems,
+    setAnnotations,
+    setStabilityItems,
+    setRepairRequests,
+  });
 
   useEffect(() => {
     saveAnnotations(pathname, annotations);
   }, [annotations, pathname]);
 
   useEffect(() => {
-    annotationsRef.current = annotations;
-  }, [annotations]);
+    if (!stabilityEnabled) {
+      return;
+    }
+    saveStabilityItems(pathname, stabilityItems);
+  }, [pathname, stabilityEnabled, stabilityItems]);
+
+  useEffect(() => {
+    if (!stabilityEnabled) {
+      return;
+    }
+
+    saveObservationEnabled(pathname, autoObservationEnabled);
+  }, [autoObservationEnabled, pathname, stabilityEnabled]);
+
+  useEffect(() => {
+    if (!stabilityEnabled) {
+      setAutoObservationEnabled(false);
+      setRepairRequests([]);
+      return;
+    }
+
+    setStabilityItems(loadStabilityItems(pathname));
+    setAutoObservationEnabled(loadObservationEnabled(pathname));
+    setRepairRequests([]);
+  }, [pathname, stabilityEnabled]);
+
+  useEffect(() => {
+    if (!stabilityEnabled && mode === "stability") {
+      setMode("annotate");
+    }
+  }, [mode, stabilityEnabled]);
 
   useEffect(() => {
     saveFloatingPosition(floatingPosition);
   }, [floatingPosition]);
-
-  useEffect(() => {
-    if (!endpoint) {
-      clearSessionId(pathname);
-      setCurrentSessionId(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    ensureRemoteSession(endpoint, {
-      pageKey: `${window.location.origin}${pathname}`,
-      pathname,
-      url: window.location.href,
-      title: document.title || pathname,
-    })
-      .then((session) => {
-        if (cancelled) {
-          return;
-        }
-
-        setCurrentSessionId(session.id);
-        saveSessionId(pathname, session.id);
-      })
-      .catch((error) => {
-        console.warn("[DevPilot] Failed to ensure remote session:", error);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [endpoint, pathname]);
-
-  useEffect(() => {
-    if (!endpoint || !currentSessionId) {
-      return;
-    }
-
-    let cancelled = false;
-    let syncing = false;
-
-    const syncNow = async () => {
-      if (syncing) {
-        return;
-      }
-
-      syncing = true;
-
-      try {
-        let remoteSession = await getRemoteSession(endpoint, currentSessionId);
-        if (cancelled) {
-          return;
-        }
-
-        const localSnapshot = annotationsRef.current;
-        const remoteById = new Map(
-          remoteSession.annotations.map((annotation) => [annotation.id, annotation]),
-        );
-
-        let pushedLocalChanges = false;
-        for (const annotation of localSnapshot) {
-          const remote = remoteById.get(annotation.id);
-          if (!remote) {
-            await syncRemoteAnnotation(endpoint, currentSessionId, annotation);
-            pushedLocalChanges = true;
-            continue;
-          }
-
-          if (annotation.updatedAt > remote.updatedAt) {
-            await updateRemoteAnnotation(endpoint, annotation.id, annotation);
-            pushedLocalChanges = true;
-          }
-        }
-
-        if (pushedLocalChanges) {
-          remoteSession = await getRemoteSession(endpoint, currentSessionId);
-          if (cancelled) {
-            return;
-          }
-        }
-
-        setAnnotations((current) => {
-          const next = mergeRemoteAnnotations(current, remoteSession.annotations);
-          return JSON.stringify(next) === JSON.stringify(current) ? current : next;
-        });
-      } catch (error) {
-        console.warn("[DevPilot] Failed to sync annotations:", error);
-      } finally {
-        syncing = false;
-      }
-    };
-
-    syncNow();
-    const intervalId = window.setInterval(syncNow, 2500);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [currentSessionId, endpoint]);
 
   useEffect(() => {
     const syncPosition = () => {
@@ -2127,6 +1479,29 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
       setActiveAnnotationId(preferredAnnotations[0].id);
     }
   }, [activeAnnotationId, annotations, mode, openAnnotations]);
+
+  useEffect(() => {
+    if (mode !== "stability") {
+      return;
+    }
+
+    const preferredItems =
+      openStabilityItems.length > 0 ? openStabilityItems : stabilityItems;
+
+    if (preferredItems.length === 0) {
+      if (stabilityActiveId) {
+        setStabilityActiveId(null);
+      }
+      return;
+    }
+
+    if (
+      !stabilityActiveId ||
+      !stabilityItems.some((item) => item.id === stabilityActiveId)
+    ) {
+      setStabilityActiveId(preferredItems[0].id);
+    }
+  }, [mode, openStabilityItems, stabilityActiveId, stabilityItems]);
 
   useEffect(() => {
     if (!isOpen || mode !== "annotate") {
@@ -2419,6 +1794,45 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
   }, [copyState]);
 
   useEffect(() => {
+    if (stabilityCopyState === "idle") {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setStabilityCopyState("idle");
+    }, 1800);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [stabilityCopyState]);
+
+  useEffect(() => {
+    if (repairState === "idle") {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setRepairState("idle");
+      setRepairTargetId(null);
+    }, 1800);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [repairState]);
+
+  useEffect(() => {
+    if (!stabilityEnabled || !autoObservationEnabled) {
+      return undefined;
+    }
+    return startAutoObservation({
+      isWithinDevPilotTarget,
+      recordObservedStabilityItem,
+    });
+  }, [autoObservationEnabled, pathname, stabilityEnabled, syncEndpoint]);
+
+  useEffect(() => {
     const onPointerMove = (event: PointerEvent) => {
       const drag = dragRef.current;
       if (!drag || event.pointerId !== drag.pointerId) {
@@ -2475,6 +1889,16 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
     };
   }, [annotations, openAnnotations]);
 
+  const stabilitySummary = useMemo(() => {
+    return {
+      open: stabilityItems.filter((item) => item.status === "open").length,
+      diagnosing: stabilityItems.filter((item) => item.status === "diagnosing").length,
+      resolved: stabilityItems.filter((item) => item.status === "resolved").length,
+      critical: stabilityItems.filter((item) => item.severity === "critical").length,
+      total: stabilityItems.length,
+    };
+  }, [stabilityItems]);
+
   const areaDraftPreview = useMemo(
     () => (areaDraftRect ? describeAreaDraftPreview(areaDraftRect) : null),
     [areaDraftRect],
@@ -2527,8 +1951,8 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
     );
     setActiveAnnotationId(annotationId);
 
-    if (endpoint) {
-      updateRemoteAnnotation(endpoint, annotationId, {
+    if (syncEndpoint) {
+      updateRemoteAnnotation(syncEndpoint, annotationId, {
         status: nextStatus,
         updatedAt: nextUpdatedAt,
       }).catch((error) => {
@@ -2551,6 +1975,329 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
     const text = formatDevPilotExportMarkdown(payload);
     const didCopy = await copyTextToClipboard(text);
     setCopyState(didCopy ? "copied" : "failed");
+  };
+
+  const resetStabilityComposer = () => {
+    setStabilityDraft(getDefaultStabilityDraft());
+    setStabilityEditingId(null);
+    setIsStabilityComposerOpen(false);
+  };
+
+  const openStabilityComposer = (item?: DevPilotStabilityItem) => {
+    if (!item) {
+      setStabilityDraft(getDefaultStabilityDraft());
+      setStabilityEditingId(null);
+      setIsStabilityComposerOpen(true);
+      return;
+    }
+
+    setStabilityDraft({
+      title: item.title,
+      severity: item.severity,
+      symptom: item.symptom,
+      reproSteps: item.reproSteps || "",
+      impact: item.impact || "",
+      signals: item.signals || "",
+      fixGoal: item.fixGoal || "",
+    });
+    setStabilityEditingId(item.id);
+    setStabilityActiveId(item.id);
+    setIsStabilityComposerOpen(true);
+  };
+
+  const buildStabilityContext = () => ({
+    capturedAt: Date.now(),
+    title: document.title || pathname,
+    url: window.location.href,
+    pathname,
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    },
+    sessionId: currentSessionId || undefined,
+    userAgent: typeof navigator === "undefined" ? undefined : navigator.userAgent,
+    openAnnotationCount: openAnnotations.length,
+    openAnnotationComments: openAnnotations.slice(0, 5).map((annotation) => {
+      return `${annotation.elementName}: ${annotation.comment}`;
+    }),
+  });
+
+  const buildObservationContext = () => {
+    const currentOpenAnnotations = annotationsRef.current.filter((annotation) =>
+      isOpenDevPilotAnnotationStatus(annotation.status),
+    );
+
+    return {
+      capturedAt: Date.now(),
+      title: document.title || pathname,
+      url: window.location.href,
+      pathname,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+      sessionId: currentSessionIdRef.current || undefined,
+      userAgent: typeof navigator === "undefined" ? undefined : navigator.userAgent,
+      openAnnotationCount: currentOpenAnnotations.length,
+      openAnnotationComments: currentOpenAnnotations.slice(0, 5).map((annotation) => {
+        return `${annotation.elementName}: ${annotation.comment}`;
+      }),
+    };
+  };
+
+  const recordObservedStabilityItem = (input: {
+    fingerprint: string;
+    title: string;
+    severity: DevPilotStabilitySeverity;
+    symptom: string;
+    signals?: string;
+    impact?: string;
+    reproSteps?: string;
+    fixGoal?: string;
+  }) => {
+    if (!stabilityEnabled || !autoObservationEnabled) {
+      return;
+    }
+
+    const now = Date.now();
+    const fingerprints = observationFingerprintRef.current;
+    for (const [key, timestamp] of fingerprints.entries()) {
+      if (now - timestamp > AUTO_OBSERVATION_DEDUPE_MS) {
+        fingerprints.delete(key);
+      }
+    }
+
+    const existingTimestamp = fingerprints.get(input.fingerprint);
+    if (existingTimestamp && now - existingTimestamp < AUTO_OBSERVATION_DEDUPE_MS) {
+      return;
+    }
+
+    fingerprints.set(input.fingerprint, now);
+
+    const nextItem: DevPilotStabilityItem = {
+      id: createScopedId("sti_obs"),
+      sessionId: currentSessionIdRef.current || undefined,
+      pathname,
+      createdAt: now,
+      updatedAt: now,
+      status: "open",
+      severity: input.severity,
+      title: input.title,
+      symptom: trimObservationText(input.symptom, 360),
+      reproSteps: input.reproSteps,
+      impact: input.impact,
+      signals: input.signals,
+      fixGoal: input.fixGoal,
+      context: buildObservationContext(),
+    };
+
+    setStabilityItems((current) => {
+      return sortStabilityItemsByUpdatedAt([nextItem, ...current]);
+    });
+
+    const sessionId = currentSessionIdRef.current;
+    if (syncEndpoint && sessionId) {
+      syncRemoteStabilityItem(syncEndpoint, sessionId, nextItem).catch((error) => {
+        console.warn("[DevPilot] Failed to sync observed stability item:", error);
+      });
+    }
+  };
+
+  const handleCopyStabilityItems = async (
+    items: DevPilotStabilityItem[],
+  ) => {
+    const payload = createDevPilotStabilityExportPayload({
+      items,
+      pathname,
+      title: document.title || "Untitled Page",
+      url: window.location.href,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+    });
+    const text = formatDevPilotStabilityExportMarkdown(payload);
+    const didCopy = await copyTextToClipboard(text);
+    setStabilityCopyState(didCopy ? "copied" : "failed");
+  };
+
+  const handleRequestStabilityRepair = async (
+    item: DevPilotStabilityItem,
+  ) => {
+    const payload = createDevPilotStabilityRepairPayload({
+      item,
+      pathname,
+      title: document.title || "Untitled Page",
+      url: window.location.href,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+      relatedAnnotations: item.context.openAnnotationComments,
+    });
+    const prompt = formatDevPilotStabilityRepairMarkdown(payload);
+    const requestId = createScopedId("req");
+    const requestedAt = Date.now();
+    const localRequest: DevPilotRepairRequestRecord = {
+      id: requestId,
+      sessionId: currentSessionId || undefined,
+      stabilityItemId: item.id,
+      pathname,
+      createdAt: requestedAt,
+      updatedAt: requestedAt,
+      status: "requested",
+      title: item.title,
+      severity: item.severity,
+      prompt,
+      requestedBy: "human",
+    };
+    let succeeded = false;
+
+    try {
+      if (onRepairRequest) {
+        const request: DevPilotRepairRequest = {
+          item,
+          prompt,
+          endpoint: syncEndpoint,
+          sessionId: currentSessionId || undefined,
+        };
+        await onRepairRequest(request);
+        setRepairRequests((current) =>
+          mergeRemoteRepairRequests(current, [localRequest]),
+        );
+        succeeded = true;
+      } else if (syncEndpoint && currentSessionId) {
+        const remoteRequest = await createRemoteRepairRequest(syncEndpoint, currentSessionId, {
+          id: requestId,
+          stabilityItemId: item.id,
+          pathname,
+          title: item.title,
+          severity: item.severity,
+          prompt,
+          requestedBy: "human",
+        });
+        setRepairRequests((current) =>
+          mergeRemoteRepairRequests(current, [remoteRequest]),
+        );
+        succeeded = true;
+      } else {
+        setRepairRequests((current) =>
+          mergeRemoteRepairRequests(current, [localRequest]),
+        );
+        succeeded = await copyTextToClipboard(prompt);
+      }
+    } catch (error) {
+      console.warn("[DevPilot] Failed to trigger repair request:", error);
+      succeeded = false;
+    }
+
+    setRepairTargetId(item.id);
+    setRepairState(succeeded ? "requested" : "failed");
+
+    if (succeeded && item.status === "open") {
+      setStabilityItemStatus(item.id, "diagnosing");
+    }
+  };
+
+  const setStabilityItemStatus = (
+    itemId: string,
+    nextStatus: DevPilotStabilityStatus,
+  ) => {
+    const nextUpdatedAt = Date.now();
+    setStabilityItems((current) =>
+      sortStabilityItemsByUpdatedAt(
+        current.map((item) =>
+          item.id === itemId
+            ? {
+                ...item,
+                status: nextStatus,
+                updatedAt: nextUpdatedAt,
+              }
+            : item,
+        ),
+      ),
+    );
+    setStabilityActiveId(itemId);
+
+    if (syncEndpoint) {
+      updateRemoteStabilityItem(syncEndpoint, itemId, {
+        status: nextStatus,
+        updatedAt: nextUpdatedAt,
+      }).catch((error) => {
+        console.warn("[DevPilot] Failed to update stability status:", error);
+      });
+    }
+  };
+
+  const handleSaveStabilityItem = () => {
+    if (!stabilityDraft.title.trim() || !stabilityDraft.symptom.trim()) {
+      return;
+    }
+
+    const now = Date.now();
+    const existing = stabilityEditingId
+      ? stabilityItems.find((item) => item.id === stabilityEditingId)
+      : null;
+    const nextItem: DevPilotStabilityItem = {
+      id: stabilityEditingId || `sti_${createId()}`,
+      sessionId: existing?.sessionId || currentSessionId || undefined,
+      pathname,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      status: existing?.status || "open",
+      severity: isDevPilotStabilitySeverity(stabilityDraft.severity)
+        ? stabilityDraft.severity
+        : "high",
+      title: stabilityDraft.title.trim(),
+      symptom: stabilityDraft.symptom.trim(),
+      reproSteps: stabilityDraft.reproSteps.trim() || undefined,
+      impact: stabilityDraft.impact.trim() || undefined,
+      signals: stabilityDraft.signals.trim() || undefined,
+      fixGoal: stabilityDraft.fixGoal.trim() || undefined,
+      context: buildStabilityContext(),
+    };
+
+    setStabilityItems((current) => {
+      const next = stabilityEditingId
+        ? current.map((item) => (item.id === stabilityEditingId ? nextItem : item))
+        : [nextItem, ...current];
+      return sortStabilityItemsByUpdatedAt(next);
+    });
+    setStabilityActiveId(nextItem.id);
+
+    if (syncEndpoint && currentSessionId) {
+      const syncPromise = stabilityEditingId
+        ? updateRemoteStabilityItem(syncEndpoint, nextItem.id, nextItem)
+        : syncRemoteStabilityItem(syncEndpoint, currentSessionId, nextItem);
+      syncPromise.catch((error) => {
+        console.warn("[DevPilot] Failed to sync stability item:", error);
+      });
+    }
+
+    resetStabilityComposer();
+  };
+
+  const handleDeleteStabilityItem = () => {
+    if (!stabilityEditingId) {
+      resetStabilityComposer();
+      return;
+    }
+
+    setStabilityItems((current) =>
+      current.filter((item) => item.id !== stabilityEditingId),
+    );
+
+    if (stabilityActiveId === stabilityEditingId) {
+      setStabilityActiveId(null);
+    }
+
+    if (syncEndpoint) {
+      deleteRemoteStabilityItem(syncEndpoint, stabilityEditingId).catch((error) => {
+        console.warn("[DevPilot] Failed to delete stability item:", error);
+      });
+    }
+
+    resetStabilityComposer();
   };
 
   const handleSave = () => {
@@ -2589,8 +2336,8 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
       );
       setActiveAnnotationId(editingId);
 
-      if (endpoint) {
-        updateRemoteAnnotation(endpoint, editingId, updatedAnnotation).catch((error) => {
+      if (syncEndpoint) {
+        updateRemoteAnnotation(syncEndpoint, editingId, updatedAnnotation).catch((error) => {
           console.warn("[DevPilot] Failed to update annotation:", error);
         });
       }
@@ -2616,8 +2363,8 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
       setAnnotations((current) => sortAnnotationsByUpdatedAt([annotation, ...current]));
       setActiveAnnotationId(annotation.id);
 
-      if (endpoint && currentSessionId) {
-        syncRemoteAnnotation(endpoint, currentSessionId, annotation).catch((error) => {
+      if (syncEndpoint && currentSessionId) {
+        syncRemoteAnnotation(syncEndpoint, currentSessionId, annotation).catch((error) => {
           console.warn("[DevPilot] Failed to create remote annotation:", error);
         });
       }
@@ -2640,8 +2387,8 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
       setActiveAnnotationId(null);
     }
 
-    if (endpoint) {
-      deleteRemoteAnnotation(endpoint, editingId).catch((error) => {
+    if (syncEndpoint) {
+      deleteRemoteAnnotation(syncEndpoint, editingId).catch((error) => {
         console.warn("[DevPilot] Failed to delete annotation:", error);
       });
     }
@@ -2649,6 +2396,46 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
     setSelection(null);
     setEditingId(null);
     setDraft("");
+  };
+
+  const handleDeleteAnnotationRecord = (annotation: DevPilotAnnotation) => {
+    setAnnotations((current) =>
+      current.filter((item) => item.id !== annotation.id),
+    );
+    if (activeAnnotationId === annotation.id) {
+      setActiveAnnotationId(null);
+    }
+
+    if (syncEndpoint) {
+      deleteRemoteAnnotation(syncEndpoint, annotation.id).catch((error) => {
+        console.warn("[DevPilot] Failed to delete annotation:", error);
+      });
+    }
+  };
+
+  const handleDeleteStabilityItemRecord = (item: DevPilotStabilityItem) => {
+    setStabilityItems((current) => current.filter((entry) => entry.id !== item.id));
+    if (stabilityActiveId === item.id) {
+      setStabilityActiveId(null);
+    }
+    if (stabilityEditingId === item.id) {
+      resetStabilityComposer();
+    }
+    if (syncEndpoint) {
+      deleteRemoteStabilityItem(syncEndpoint, item.id).catch((error) => {
+        console.warn("[DevPilot] Failed to delete stability item:", error);
+      });
+    }
+  };
+
+  const handleStabilityDraftChange = (
+    field: keyof DevPilotStabilityDraft,
+    value: string | DevPilotStabilitySeverity,
+  ) => {
+    setStabilityDraft((current) => ({
+      ...current,
+      [field]: value,
+    }));
   };
 
   const pendingMarkerStyle = selection
@@ -2660,6 +2447,10 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
   const popupPosition = selection ? ensurePopupPositionFromPoint(selection.pageX, selection.pageY, 320, 280) : null;
   const activeFocusAnnotation = !selection && isOpen && mode === "session" ? activeAnnotation : null;
   const togglePanelMode = (nextMode: DevPilotMode) => {
+    if (nextMode === "stability" && !stabilityEnabled) {
+      setMode("annotate");
+      return;
+    }
     setMode((current) => (current === nextMode ? "annotate" : nextMode));
   };
   const startDragging = (event: React.PointerEvent<HTMLElement>) => {
@@ -2685,6 +2476,10 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
   };
   const toolbarRect = toolbarRef.current?.getBoundingClientRect();
   const panelWidth = 392;
+  const toolbarStatusLabel = syncEndpoint ? "协作" : "本地";
+  const toolbarStatusTitle = syncEndpoint
+    ? "当前已接入 MCP 协作模式"
+    : "当前为本地标注模式";
   const panelLeft = clampFloatingPosition(
     {
       left: (toolbarRect?.left || floatingPosition.left) + (toolbarRect?.width || 44) - panelWidth,
@@ -2912,287 +2707,25 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
       ) : null}
 
       {isOpen && mode === "session" ? (
-        <section
-          className="dl-session-panel"
-          style={{ left: panelLeft, bottom: panelBottom }}
-        >
-          <div className="dl-session-header">
-            <div>
-              <h3 className="dl-session-title">本页标注</h3>
-              <p className="dl-session-subtitle">
-                这里先只展示 annotation，会话、稳定性和 MCP 同步后续再逐步接进来。
-              </p>
-            </div>
-            <div className="dl-session-header-actions">
-              <button
-                className="dl-popup-action"
-                data-kind={copyState === "failed" ? "danger" : copyState === "copied" ? "primary" : "ghost"}
-                disabled={openAnnotations.length === 0}
-                onClick={() => {
-                  void handleCopyAnnotations();
-                }}
-                title="复制本页仍需处理的标注信息"
-              >
-                {copyState === "copied" ? "已复制当前标注" : copyState === "failed" ? "复制失败" : "复制当前标注"}
-              </button>
-              <button className="dl-toolbar-icon-button" data-kind="secondary" onClick={() => setMode("annotate")} title="关闭会话面板">
-                <CollapseIcon />
-              </button>
-            </div>
-          </div>
-          <div className="dl-summary-grid">
-            <div className="dl-summary-card">
-              <span className="dl-summary-label">未完成</span>
-              <span className="dl-summary-value">{summary.open}</span>
-            </div>
-            <div className="dl-summary-card">
-              <span className="dl-summary-label">处理中</span>
-              <span className="dl-summary-value">{summary.acknowledged}</span>
-            </div>
-            <div className="dl-summary-card">
-              <span className="dl-summary-label">已解决</span>
-              <span className="dl-summary-value">{summary.resolved}</span>
-            </div>
-            <div className="dl-summary-card">
-              <span className="dl-summary-label">已忽略</span>
-              <span className="dl-summary-value">{summary.dismissed}</span>
-            </div>
-          </div>
-          <div className="dl-session-body">
-            <div className="dl-session-section">
-              <div className="dl-session-section-header">
-                <h4 className="dl-session-section-title">当前待处理</h4>
-                <span className="dl-session-section-count">{openAnnotations.length}</span>
-              </div>
-              <div className="dl-session-list">
-                {openAnnotations.length === 0 ? (
-                  <div className="dl-session-empty">
-                    {annotations.length === 0
-                      ? "还没有本页标注。进入“标注模式”后点击页面元素，即可就地创建 annotation。"
-                      : "当前没有未完成标注。已解决和已忽略的项目会保留在下面的历史区。"}
-                  </div>
-                ) : (
-                  openAnnotations.map((annotation) => (
-                    <article
-                      key={annotation.id}
-                      className="dl-annotation-card"
-                      data-status={annotation.status}
-                      data-selected={annotation.id === activeAnnotationId}
-                      onClick={() => setActiveAnnotationId(annotation.id)}
-                    >
-                      <div className="dl-annotation-main">
-                        <div className="dl-annotation-top">
-                          <span className="dl-status-pill" data-status={annotation.status}>
-                            {getAnnotationStatusLabel(annotation.status)}
-                          </span>
-                        </div>
-                        <div className="dl-annotation-comment">{annotation.comment}</div>
-                        <div className="dl-annotation-meta">
-                          {annotation.elementName}
-                          <br />
-                          {annotation.elementPath}
-                        </div>
-                      </div>
-                      <div className="dl-annotation-side">
-                        <span className="dl-annotation-time">{formatTime(annotation.updatedAt)}</span>
-                        <span className="dl-annotation-chevron">›</span>
-                      </div>
-                    </article>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {closedAnnotations.length > 0 ? (
-              <div className="dl-session-section">
-                <div className="dl-session-section-header">
-                  <h4 className="dl-session-section-title">已完成历史</h4>
-                  <span className="dl-session-section-count">{closedAnnotations.length}</span>
-                </div>
-                <div className="dl-session-list">
-                  {closedAnnotations.map((annotation) => (
-                    <article
-                      key={annotation.id}
-                      className="dl-annotation-card"
-                      data-status={annotation.status}
-                      data-selected={annotation.id === activeAnnotationId}
-                      onClick={() => setActiveAnnotationId(annotation.id)}
-                    >
-                      <div className="dl-annotation-main">
-                        <div className="dl-annotation-top">
-                          <span className="dl-status-pill" data-status={annotation.status}>
-                            {getAnnotationStatusLabel(annotation.status)}
-                          </span>
-                        </div>
-                        <div className="dl-annotation-comment">{annotation.comment}</div>
-                        <div className="dl-annotation-meta">
-                          {annotation.elementName}
-                          <br />
-                          {annotation.elementPath}
-                        </div>
-                      </div>
-                      <div className="dl-annotation-side">
-                        <span className="dl-annotation-time">{formatTime(annotation.updatedAt)}</span>
-                        <span className="dl-annotation-chevron">›</span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            <div className="dl-session-section">
-              <div className="dl-session-section-header">
-                <h4 className="dl-session-section-title">当前详情</h4>
-                <span className="dl-section-note">Claude / Cursor 回复后也会在这里继续展开</span>
-              </div>
-              <div className="dl-session-detail">
-              {activeAnnotation ? (
-                <>
-                  <div className="dl-detail-card">
-                    <h4 className="dl-detail-title">当前标注</h4>
-                    <div className="dl-detail-body">{activeAnnotation.comment}</div>
-                    {activeAnnotation.selectedText ? (
-                      <div className="dl-detail-quote">{activeAnnotation.selectedText}</div>
-                    ) : null}
-                  </div>
-
-                  <div className="dl-detail-card">
-                    <h4 className="dl-detail-title">元素上下文</h4>
-                    <div className="dl-detail-meta">
-                      <div className="dl-detail-kv">
-                        <strong>元素摘要</strong>
-                        <span>{activeAnnotation.elementName}</span>
-                      </div>
-                      <div className="dl-detail-kv">
-                        <strong>状态</strong>
-                        <span>{getAnnotationStatusLabel(activeAnnotation.status)}</span>
-                      </div>
-                      <div className="dl-detail-kv" style={{ gridColumn: "1 / -1" }}>
-                        <strong>元素路径</strong>
-                        <span>{activeAnnotation.elementPath}</span>
-                      </div>
-                      {activeAnnotation.nearbyText ? (
-                        <div className="dl-detail-kv" style={{ gridColumn: "1 / -1" }}>
-                          <strong>附近文本</strong>
-                          <span>{activeAnnotation.nearbyText}</span>
-                        </div>
-                      ) : null}
-                      {activeAnnotation.relatedElements?.length ? (
-                        <div className="dl-detail-kv" style={{ gridColumn: "1 / -1" }}>
-                          <strong>命中元素</strong>
-                          <div className="dl-detail-chip-list">
-                            {activeAnnotation.relatedElements.map((item) => (
-                              <span key={item} className="dl-detail-chip">
-                                {item}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                      <div className="dl-detail-kv">
-                        <strong>创建时间</strong>
-                        <span>{formatTime(activeAnnotation.createdAt)}</span>
-                      </div>
-                      <div className="dl-detail-kv">
-                        <strong>最后更新</strong>
-                        <span>{formatTime(activeAnnotation.updatedAt)}</span>
-                      </div>
-                      {getAnnotationKind(activeAnnotation) === "area" ? (
-                        <div className="dl-detail-kv">
-                          <strong>区域尺寸</strong>
-                          <span>
-                            {Math.round(activeAnnotation.rect.width)} × {Math.round(activeAnnotation.rect.height)}
-                          </span>
-                        </div>
-                      ) : null}
-                      {getAnnotationKind(activeAnnotation) === "area" ? (
-                        <div className="dl-detail-kv">
-                          <strong>命中数量</strong>
-                          <span>{activeAnnotation.matchCount || activeAnnotation.relatedElements?.length || 0} 个元素</span>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="dl-detail-card">
-                    <h4 className="dl-detail-title">动作</h4>
-                    <div className="dl-detail-actions">
-                      <button
-                        className="dl-popup-action"
-                        data-kind="primary"
-                        onClick={() => openAnnotationEditor(activeAnnotation)}
-                      >
-                        编辑标注
-                      </button>
-                      {activeAnnotation.status === "pending" ? (
-                        <button
-                          className="dl-popup-action"
-                          data-kind="ghost"
-                          onClick={() => setAnnotationStatus(activeAnnotation.id, "acknowledged")}
-                        >
-                          标记处理中
-                        </button>
-                      ) : null}
-                      {activeAnnotation.status === "acknowledged" ? (
-                        <button
-                          className="dl-popup-action"
-                          data-kind="ghost"
-                          onClick={() => setAnnotationStatus(activeAnnotation.id, "pending")}
-                        >
-                          重新设为待处理
-                        </button>
-                      ) : null}
-                      {isClosedDevPilotAnnotationStatus(activeAnnotation.status) ? (
-                        <button
-                          className="dl-popup-action"
-                          data-kind="ghost"
-                          onClick={() => setAnnotationStatus(activeAnnotation.id, "pending")}
-                        >
-                          重新打开
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            className="dl-popup-action"
-                            data-kind="primary"
-                            onClick={() => setAnnotationStatus(activeAnnotation.id, "resolved")}
-                          >
-                            标记已解决
-                          </button>
-                          <button
-                            className="dl-popup-action"
-                            data-kind="danger"
-                            onClick={() => setAnnotationStatus(activeAnnotation.id, "dismissed")}
-                          >
-                            忽略此项
-                          </button>
-                        </>
-                      )}
-                      <button
-                        className="dl-popup-action"
-                        data-kind="danger"
-                        onClick={() => {
-                          setAnnotations((current) =>
-                            current.filter((item) => item.id !== activeAnnotation.id),
-                          );
-                          setActiveAnnotationId(null);
-                        }}
-                      >
-                        删除标注
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="dl-detail-empty">
-                  先从左侧列表里选择一条标注。后续这里会继续接 Claude / Cursor 的回复、状态流转和源码命中信息。
-                </div>
-              )}
-              </div>
-            </div>
-          </div>
-        </section>
+        <SessionPanel
+          panelLeft={panelLeft}
+          panelBottom={panelBottom}
+          copyState={copyState}
+          summary={summary}
+          annotations={annotations}
+          openAnnotations={openAnnotations}
+          closedAnnotations={closedAnnotations}
+          activeAnnotationId={activeAnnotationId}
+          activeAnnotation={activeAnnotation}
+          onCopy={() => {
+            void handleCopyAnnotations();
+          }}
+          onClose={() => setMode("annotate")}
+          onSelectAnnotation={setActiveAnnotationId}
+          onOpenAnnotationEditor={openAnnotationEditor}
+          onSetAnnotationStatus={setAnnotationStatus}
+          onDeleteAnnotation={handleDeleteAnnotationRecord}
+        />
       ) : null}
 
       {isOpen ? (
@@ -3210,9 +2743,9 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
           >
             <DevPilotGlyph />
           </span>
-          <span className="dl-toolbar-status" title="当前为本地标注模式">
+          <span className="dl-toolbar-status" title={toolbarStatusTitle}>
             <span className="dl-toolbar-status-dot" />
-            本地
+            {toolbarStatusLabel}
           </span>
           <button
             className="dl-toolbar-button"
@@ -3223,14 +2756,17 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
             <span className="dl-toolbar-label">标注</span>
             {summary.open > 0 ? <span className="dl-toolbar-count">{summary.open}</span> : null}
           </button>
-          <button
-            className="dl-toolbar-button"
-            data-active={mode === "stability"}
-            onClick={() => togglePanelMode("stability")}
-          >
-            <StabilityIcon />
-            <span className="dl-toolbar-label">稳定性</span>
-          </button>
+          {stabilityEnabled ? (
+            <button
+              className="dl-toolbar-button"
+              data-active={mode === "stability"}
+              onClick={() => togglePanelMode("stability")}
+            >
+              <StabilityIcon />
+              <span className="dl-toolbar-label">稳定性</span>
+              {openStabilityItems.length > 0 ? <span className="dl-toolbar-count">{openStabilityItems.length}</span> : null}
+            </button>
+          ) : null}
           <button
             className="dl-toolbar-button"
             data-active={mode === "session"}
@@ -3271,56 +2807,45 @@ function DevPilotApp({ defaultOpen = false, endpoint }: DevPilotMountOptions) {
         </button>
       )}
 
-      {isOpen && mode === "stability" ? (
-        <section
-          className="dl-session-panel"
-          style={{ left: panelLeft, bottom: panelBottom }}
-        >
-          <div className="dl-session-header">
-            <div>
-              <h3 className="dl-session-title">稳定性模式</h3>
-              <p className="dl-session-subtitle">
-                这一层会在 v0.4 接入自动 incident observation；当前 v0.2 先完成 annotation 主交互。
-              </p>
-            </div>
-            <button
-              className="dl-toolbar-icon-button"
-              data-kind="secondary"
-              onClick={() => setMode("annotate")}
-              title="关闭稳定性面板"
-            >
-              <CollapseIcon />
-            </button>
-          </div>
-          <div className="dl-state-panel">
-            <div className="dl-state-empty">
-              稳定性模式会在后续阶段接入自动 incident observation。这里不会和页面标注混在一起，而是独立维护异常采集、诊断和跟进状态。
-            </div>
-            <div className="dl-state-list">
-              <div className="dl-state-item">
-                <span className="dl-state-dot" />
-                <div>
-                  <h4 className="dl-state-title">JavaScript 异常</h4>
-                  <p className="dl-state-desc">自动采集运行时错误、Promise rejection，并附带 route、last action 与堆栈摘要。</p>
-                </div>
-              </div>
-              <div className="dl-state-item">
-                <span className="dl-state-dot" />
-                <div>
-                  <h4 className="dl-state-title">接口与业务错误</h4>
-                  <p className="dl-state-desc">采集 API 异常、业务上报错误码和失败请求上下文，形成独立 incident 列表。</p>
-                </div>
-              </div>
-              <div className="dl-state-item">
-                <span className="dl-state-dot" />
-                <div>
-                  <h4 className="dl-state-title">源码与工作区关联</h4>
-                  <p className="dl-state-desc">结合 workspace 绑定和堆栈信息命中本地源码位置，为 Claude / Cursor 提供后续排查入口。</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+      {stabilityEnabled && isOpen && mode === "stability" ? (
+        <StabilityPanel
+          panelLeft={panelLeft}
+          panelBottom={panelBottom}
+          autoObservationEnabled={autoObservationEnabled}
+          stabilityCopyState={stabilityCopyState}
+          openStabilityItems={openStabilityItems}
+          resolvedStabilityItems={resolvedStabilityItems}
+          stabilitySummary={stabilitySummary}
+          isStabilityComposerOpen={isStabilityComposerOpen}
+          stabilityEditingId={stabilityEditingId}
+          stabilityDraft={stabilityDraft}
+          stabilityActiveId={stabilityActiveId}
+          activeStabilityItem={activeStabilityItem}
+          latestActiveRepairRequest={latestActiveRepairRequest}
+          repairTargetId={repairTargetId}
+          repairState={repairState}
+          onToggleObservation={() =>
+            setAutoObservationEnabled((current) => !current)
+          }
+          onCopyOpenItems={() => {
+            void handleCopyStabilityItems(openStabilityItems);
+          }}
+          onOpenComposer={openStabilityComposer}
+          onClose={() => setMode("annotate")}
+          onDraftChange={handleStabilityDraftChange}
+          onResetComposer={resetStabilityComposer}
+          onDeleteComposerItem={handleDeleteStabilityItem}
+          onSaveStabilityItem={handleSaveStabilityItem}
+          onSelectStabilityItem={setStabilityActiveId}
+          onCopyStabilityItem={(item) => {
+            void handleCopyStabilityItems([item]);
+          }}
+          onRequestRepair={(item) => {
+            void handleRequestStabilityRepair(item);
+          }}
+          onSetStabilityItemStatus={setStabilityItemStatus}
+          onDeleteStabilityItem={handleDeleteStabilityItemRecord}
+        />
       ) : null}
     </div>
   );

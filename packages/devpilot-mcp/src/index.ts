@@ -7,6 +7,7 @@ type ParsedArgs = {
   port: number;
   httpUrl: string;
   mcpOnly: boolean;
+  httpOnly: boolean;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -14,6 +15,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   let port = 5213;
   let httpUrl = "http://localhost:5213";
   let mcpOnly = false;
+  let httpOnly = false;
 
   for (let index = 0; index < normalizedArgv.length; index += 1) {
     const arg = normalizedArgv[index];
@@ -38,10 +40,15 @@ function parseArgs(argv: string[]): ParsedArgs {
 
     if (arg === "--mcp-only") {
       mcpOnly = true;
+      continue;
+    }
+
+    if (arg === "--http-only") {
+      httpOnly = true;
     }
   }
 
-  return { port, httpUrl, mcpOnly };
+  return { port, httpUrl, mcpOnly, httpOnly };
 }
 
 export { startHttpServer } from "./http.js";
@@ -50,10 +57,14 @@ export { createStore } from "./store.js";
 export type * from "./types.js";
 
 async function main(): Promise<void> {
-  const { port, httpUrl, mcpOnly } = parseArgs(process.argv.slice(2));
+  const { port, httpUrl, mcpOnly, httpOnly } = parseArgs(process.argv.slice(2));
 
   if (!mcpOnly) {
     startHttpServer(port);
+  }
+
+  if (httpOnly) {
+    return;
   }
 
   await startMcpServer(httpUrl);

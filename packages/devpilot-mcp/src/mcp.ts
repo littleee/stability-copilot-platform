@@ -4,180 +4,48 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
 
 import type {
   DevPilotAnnotationRecord,
+  DevPilotRepairRequestRecord,
   DevPilotSessionRecord,
   DevPilotSessionWithAnnotations,
+  DevPilotStabilityItemRecord,
+  OpenRepairRequestsResponse,
+  OpenStabilityItemsResponse,
   PendingAnnotationsResponse,
 } from "./types.js";
-
-let httpBaseUrl = "http://localhost:5213";
-
-function setHttpBaseUrl(nextUrl: string): void {
-  httpBaseUrl = nextUrl;
-}
-
-async function httpGet<T>(path: string): Promise<T> {
-  const response = await fetch(`${httpBaseUrl}${path}`);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-  }
-  return response.json() as Promise<T>;
-}
-
-async function httpPatch<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${httpBaseUrl}${path}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-  }
-  return response.json() as Promise<T>;
-}
-
-async function httpPost<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${httpBaseUrl}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-  }
-  return response.json() as Promise<T>;
-}
-
-const GetSessionSchema = z.object({
-  sessionId: z.string().describe("The session ID to inspect"),
-});
-
-const GetPendingSchema = z.object({
-  sessionId: z.string().describe("The session ID to get pending annotations for"),
-});
-
-const AnnotationIdSchema = z.object({
-  annotationId: z.string().describe("The annotation ID to update"),
-});
-
-const ResolveSchema = z.object({
-  annotationId: z.string().describe("The annotation ID to resolve"),
-  summary: z.string().optional().describe("Optional summary of what was changed"),
-});
-
-const DismissSchema = z.object({
-  annotationId: z.string().describe("The annotation ID to dismiss"),
-  reason: z.string().describe("Reason for dismissing the annotation"),
-});
-
-const ReplySchema = z.object({
-  annotationId: z.string().describe("The annotation ID to reply to"),
-  message: z.string().describe("Reply content for the annotation thread"),
-});
-
-const WatchSchema = z.object({
-  sessionId: z.string().optional().describe("Optional session ID to scope the watch"),
-  batchWindowSeconds: z.number().min(1).max(60).optional().default(10),
-  timeoutSeconds: z.number().min(1).max(300).optional().default(120),
-});
-
-export const TOOLS = [
-  {
-    name: "devpilot_list_sessions",
-    description: "List all DevPilot sessions currently stored in the local bridge",
-    inputSchema: { type: "object" as const, properties: {}, required: [] },
-  },
-  {
-    name: "devpilot_get_session",
-    description: "Get a session with all annotations and replies",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        sessionId: { type: "string", description: "The session ID to inspect" },
-      },
-      required: ["sessionId"],
-    },
-  },
-  {
-    name: "devpilot_get_pending",
-    description: "Get all open annotations for a session",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        sessionId: { type: "string", description: "The session ID to inspect" },
-      },
-      required: ["sessionId"],
-    },
-  },
-  {
-    name: "devpilot_get_all_pending",
-    description: "Get all open annotations across all sessions",
-    inputSchema: { type: "object" as const, properties: {}, required: [] },
-  },
-  {
-    name: "devpilot_acknowledge",
-    description: "Mark an annotation as acknowledged",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        annotationId: { type: "string", description: "The annotation ID to acknowledge" },
-      },
-      required: ["annotationId"],
-    },
-  },
-  {
-    name: "devpilot_resolve",
-    description: "Mark an annotation as resolved and optionally add a summary reply",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        annotationId: { type: "string", description: "The annotation ID to resolve" },
-        summary: { type: "string", description: "Optional summary of what was fixed" },
-      },
-      required: ["annotationId"],
-    },
-  },
-  {
-    name: "devpilot_dismiss",
-    description: "Dismiss an annotation with a reason",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        annotationId: { type: "string", description: "The annotation ID to dismiss" },
-        reason: { type: "string", description: "Why the annotation is being dismissed" },
-      },
-      required: ["annotationId", "reason"],
-    },
-  },
-  {
-    name: "devpilot_reply",
-    description: "Add a thread reply to an annotation",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        annotationId: { type: "string", description: "The annotation ID to reply to" },
-        message: { type: "string", description: "Reply content" },
-      },
-      required: ["annotationId", "message"],
-    },
-  },
-  {
-    name: "devpilot_watch_annotations",
-    description: "Wait for new open annotations via SSE, then return them as a batch",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        sessionId: { type: "string", description: "Optional session ID to scope the watch" },
-        batchWindowSeconds: { type: "number", description: "Seconds to keep batching after the first new annotation" },
-        timeoutSeconds: { type: "number", description: "How long to wait before timing out" },
-      },
-      required: [],
-    },
-  },
-];
+import { httpGet, httpPatch, httpPost, setHttpBaseUrl } from "./mcp/http-client.js";
+import {
+  mapAnnotation,
+  mapRepairRequest,
+  mapSession,
+  mapStabilityItem,
+} from "./mcp/mappers.js";
+import {
+  AnnotationIdSchema,
+  CompleteRepairRequestSchema,
+  DismissRepairRequestSchema,
+  DismissSchema,
+  GetPendingSchema,
+  GetSessionSchema,
+  GetSessionStabilitySchema,
+  RepairRequestIdSchema,
+  ReplySchema,
+  ResolveSchema,
+  ResolveStabilitySchema,
+  StabilityItemIdSchema,
+  TOOLS,
+  WatchSchema,
+} from "./mcp/tools.js";
+import {
+  drainOpenRepairRequests,
+  drainOpenStabilityItems,
+  drainPending,
+  watchForAnnotations,
+  watchForRepairRequests,
+  watchForStabilityItems,
+} from "./mcp/watch.js";
 
 function toolResult(data: unknown) {
   return {
@@ -190,214 +58,6 @@ function toolResult(data: unknown) {
   };
 }
 
-function mapAnnotation(annotation: DevPilotAnnotationRecord) {
-  return {
-    id: annotation.id,
-    sessionId: annotation.sessionId,
-    pathname: annotation.pathname,
-    kind: annotation.kind || "element",
-    status: annotation.status,
-    comment: annotation.comment,
-    elementName: annotation.elementName,
-    elementPath: annotation.elementPath,
-    matchCount: annotation.matchCount,
-    selectedText: annotation.selectedText,
-    nearbyText: annotation.nearbyText,
-    relatedElements: annotation.relatedElements || [],
-    rect: annotation.rect,
-    pageX: annotation.pageX,
-    pageY: annotation.pageY,
-    createdAt: annotation.createdAt,
-    updatedAt: annotation.updatedAt,
-    resolvedAt: annotation.resolvedAt,
-    resolvedBy: annotation.resolvedBy,
-    replies: annotation.replies || [],
-  };
-}
-
-function mapSession(session: DevPilotSessionRecord) {
-  return {
-    id: session.id,
-    pageKey: session.pageKey,
-    pathname: session.pathname,
-    title: session.title,
-    url: session.url,
-    status: session.status,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
-  };
-}
-
-type DevPilotWatchResult =
-  | { type: "annotations"; annotations: DevPilotAnnotationRecord[] }
-  | { type: "timeout" }
-  | { type: "error"; message: string };
-
-async function drainPending(
-  sessionId: string | undefined,
-): Promise<PendingAnnotationsResponse> {
-  return sessionId
-    ? httpGet<PendingAnnotationsResponse>(`/sessions/${sessionId}/pending`)
-    : httpGet<PendingAnnotationsResponse>("/pending");
-}
-
-function watchForAnnotations(
-  sessionId: string | undefined,
-  batchWindowMs: number,
-  timeoutMs: number,
-): Promise<DevPilotWatchResult> {
-  return new Promise((resolve) => {
-    let aborted = false;
-    const controller = new AbortController();
-    let batchTimer: ReturnType<typeof setTimeout> | null = null;
-    const collected = new Map<string, DevPilotAnnotationRecord>();
-
-    const cleanup = () => {
-      aborted = true;
-      controller.abort();
-      if (batchTimer) {
-        clearTimeout(batchTimer);
-      }
-      clearTimeout(timeoutId);
-    };
-
-    const finishWithAnnotations = () => {
-      cleanup();
-      resolve({
-        type: "annotations",
-        annotations: Array.from(collected.values()),
-      });
-    };
-
-    const timeoutId = setTimeout(() => {
-      cleanup();
-      resolve({ type: "timeout" });
-    }, timeoutMs);
-
-    const sseUrl = sessionId
-      ? `${httpBaseUrl}/sessions/${sessionId}/events?agent=true`
-      : `${httpBaseUrl}/events?agent=true`;
-
-    fetch(sseUrl, {
-      signal: controller.signal,
-      headers: {
-        Accept: "text/event-stream",
-      },
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          cleanup();
-          resolve({
-            type: "error",
-            message: `HTTP server returned ${response.status}: ${response.statusText}`,
-          });
-          return;
-        }
-
-        if (!response.body) {
-          cleanup();
-          resolve({ type: "error", message: "No response body from SSE endpoint" });
-          return;
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (!aborted) {
-          const { done, value } = await reader.read();
-          if (done) {
-            if (!aborted) {
-              if (collected.size > 0) {
-                finishWithAnnotations();
-              } else {
-                cleanup();
-                resolve({
-                  type: "error",
-                  message: "SSE connection closed unexpectedly. The devpilot-mcp server may have restarted.",
-                });
-              }
-            }
-            return;
-          }
-
-          buffer += decoder.decode(value, { stream: true });
-          const chunks = buffer.split("\n\n");
-          buffer = chunks.pop() || "";
-
-          for (const chunk of chunks) {
-            const lines = chunk
-              .split("\n")
-              .map((line) => line.trim())
-              .filter(Boolean);
-
-            const dataLine = lines.find((line) => line.startsWith("data: "));
-            if (!dataLine) {
-              continue;
-            }
-
-            try {
-              const event = JSON.parse(dataLine.slice(6)) as {
-                type: string;
-                sequence?: number;
-                sessionId: string;
-                payload?: DevPilotAnnotationRecord;
-              };
-
-              if (event.type !== "annotation.created") {
-                continue;
-              }
-
-              if (event.sequence === 0) {
-                continue;
-              }
-
-              if (!event.payload) {
-                continue;
-              }
-
-              if (event.payload.status !== "pending" && event.payload.status !== "acknowledged") {
-                continue;
-              }
-
-              collected.set(event.payload.id, event.payload);
-
-              if (!batchTimer) {
-                batchTimer = setTimeout(() => {
-                  finishWithAnnotations();
-                }, batchWindowMs);
-              }
-            } catch {
-              // Ignore malformed SSE events.
-            }
-          }
-        }
-      })
-      .catch((error) => {
-        if (aborted) {
-          return;
-        }
-
-        cleanup();
-        const message = error instanceof Error ? error.message : "Unknown connection error";
-        if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
-          resolve({
-            type: "error",
-            message: `Cannot connect to HTTP server at ${httpBaseUrl}. Is devpilot-mcp running?`,
-          });
-          return;
-        }
-
-        if (message.toLowerCase().includes("abort")) {
-          resolve({ type: "timeout" });
-          return;
-        }
-
-        resolve({ type: "error", message: `Connection error: ${message}` });
-      });
-  });
-}
-
 async function handleTool(name: string, input: unknown) {
   switch (name) {
     case "devpilot_list_sessions": {
@@ -406,15 +66,21 @@ async function handleTool(name: string, input: unknown) {
     }
     case "devpilot_get_session": {
       const { sessionId } = GetSessionSchema.parse(input);
-      const session = await httpGet<DevPilotSessionWithAnnotations>(`/sessions/${sessionId}`);
+      const session = await httpGet<DevPilotSessionWithAnnotations>(
+        `/sessions/${sessionId}`,
+      );
       return toolResult({
         session: mapSession(session),
         annotations: session.annotations.map(mapAnnotation),
+        stabilityItems: session.stabilityItems.map(mapStabilityItem),
+        repairRequests: session.repairRequests.map(mapRepairRequest),
       });
     }
     case "devpilot_get_pending": {
       const { sessionId } = GetPendingSchema.parse(input);
-      const pending = await httpGet<PendingAnnotationsResponse>(`/sessions/${sessionId}/pending`);
+      const pending = await httpGet<PendingAnnotationsResponse>(
+        `/sessions/${sessionId}/pending`,
+      );
       return toolResult({
         count: pending.count,
         annotations: pending.annotations.map(mapAnnotation),
@@ -427,49 +93,172 @@ async function handleTool(name: string, input: unknown) {
         annotations: pending.annotations.map(mapAnnotation),
       });
     }
+    case "devpilot_list_stability_items": {
+      const response = await httpGet<OpenStabilityItemsResponse>("/stability/open");
+      return toolResult({
+        count: response.count,
+        items: response.items.map(mapStabilityItem),
+      });
+    }
+    case "devpilot_get_session_stability_items": {
+      const { sessionId } = GetSessionStabilitySchema.parse(input);
+      const response = await httpGet<OpenStabilityItemsResponse>(
+        `/sessions/${sessionId}/stability`,
+      );
+      return toolResult({
+        count: response.count,
+        items: response.items.map(mapStabilityItem),
+      });
+    }
+    case "devpilot_get_stability_item": {
+      const { stabilityItemId } = StabilityItemIdSchema.parse(input);
+      const item = await httpGet<DevPilotStabilityItemRecord>(
+        `/stability/${stabilityItemId}`,
+      );
+      return toolResult({ item: mapStabilityItem(item) });
+    }
+    case "devpilot_list_repair_requests": {
+      const response = await httpGet<OpenRepairRequestsResponse>(
+        "/repair-requests/open",
+      );
+      return toolResult({
+        count: response.count,
+        requests: response.items.map(mapRepairRequest),
+      });
+    }
+    case "devpilot_get_repair_request": {
+      const { repairRequestId } = RepairRequestIdSchema.parse(input);
+      const request = await httpGet<DevPilotRepairRequestRecord>(
+        `/repair-requests/${repairRequestId}`,
+      );
+      return toolResult({ request: mapRepairRequest(request) });
+    }
     case "devpilot_acknowledge": {
       const { annotationId } = AnnotationIdSchema.parse(input);
-      const annotation = await httpPatch<DevPilotAnnotationRecord>(`/annotations/${annotationId}`, {
-        status: "acknowledged",
-      });
+      const annotation = await httpPatch<DevPilotAnnotationRecord>(
+        `/annotations/${annotationId}`,
+        {
+          status: "acknowledged",
+        },
+      );
       return toolResult({ acknowledged: true, annotation: mapAnnotation(annotation) });
     }
     case "devpilot_resolve": {
       const { annotationId, summary } = ResolveSchema.parse(input);
-      const annotation = await httpPatch<DevPilotAnnotationRecord>(`/annotations/${annotationId}`, {
-        status: "resolved",
-        resolvedBy: "agent",
-      });
+      const annotation = await httpPatch<DevPilotAnnotationRecord>(
+        `/annotations/${annotationId}`,
+        {
+          status: "resolved",
+          resolvedBy: "agent",
+        },
+      );
       if (summary) {
         await httpPost(`/annotations/${annotationId}/thread`, {
           role: "agent",
           content: summary,
         });
       }
-      return toolResult({ resolved: true, annotation: mapAnnotation(annotation), summary });
+      return toolResult({
+        resolved: true,
+        annotation: mapAnnotation(annotation),
+        summary,
+      });
     }
     case "devpilot_dismiss": {
       const { annotationId, reason } = DismissSchema.parse(input);
-      const annotation = await httpPatch<DevPilotAnnotationRecord>(`/annotations/${annotationId}`, {
-        status: "dismissed",
-        resolvedBy: "agent",
-      });
+      const annotation = await httpPatch<DevPilotAnnotationRecord>(
+        `/annotations/${annotationId}`,
+        {
+          status: "dismissed",
+          resolvedBy: "agent",
+        },
+      );
       await httpPost(`/annotations/${annotationId}/thread`, {
         role: "agent",
         content: reason,
       });
-      return toolResult({ dismissed: true, annotation: mapAnnotation(annotation), reason });
+      return toolResult({
+        dismissed: true,
+        annotation: mapAnnotation(annotation),
+        reason,
+      });
     }
     case "devpilot_reply": {
       const { annotationId, message } = ReplySchema.parse(input);
-      const annotation = await httpPost<DevPilotAnnotationRecord>(`/annotations/${annotationId}/thread`, {
-        role: "agent",
-        content: message,
-      });
+      const annotation = await httpPost<DevPilotAnnotationRecord>(
+        `/annotations/${annotationId}/thread`,
+        {
+          role: "agent",
+          content: message,
+        },
+      );
       return toolResult({ replied: true, annotation: mapAnnotation(annotation) });
     }
+    case "devpilot_diagnose_stability_item": {
+      const { stabilityItemId } = StabilityItemIdSchema.parse(input);
+      const item = await httpPatch<DevPilotStabilityItemRecord>(
+        `/stability/${stabilityItemId}`,
+        {
+          status: "diagnosing",
+        },
+      );
+      return toolResult({ diagnosing: true, item: mapStabilityItem(item) });
+    }
+    case "devpilot_resolve_stability_item": {
+      const { stabilityItemId } = ResolveStabilitySchema.parse(input);
+      const item = await httpPatch<DevPilotStabilityItemRecord>(
+        `/stability/${stabilityItemId}`,
+        {
+          status: "resolved",
+        },
+      );
+      return toolResult({ resolved: true, item: mapStabilityItem(item) });
+    }
+    case "devpilot_accept_repair_request": {
+      const { repairRequestId } = RepairRequestIdSchema.parse(input);
+      const request = await httpPatch<DevPilotRepairRequestRecord>(
+        `/repair-requests/${repairRequestId}`,
+        {
+          status: "accepted",
+        },
+      );
+      return toolResult({ accepted: true, request: mapRepairRequest(request) });
+    }
+    case "devpilot_complete_repair_request": {
+      const { repairRequestId, summary } = CompleteRepairRequestSchema.parse(input);
+      const request = await httpPatch<DevPilotRepairRequestRecord>(
+        `/repair-requests/${repairRequestId}`,
+        {
+          status: "completed",
+          completedBy: "agent",
+          resultSummary: summary,
+        },
+      );
+      return toolResult({
+        completed: true,
+        request: mapRepairRequest(request),
+        summary,
+      });
+    }
+    case "devpilot_dismiss_repair_request": {
+      const { repairRequestId, reason } = DismissRepairRequestSchema.parse(input);
+      const request = await httpPatch<DevPilotRepairRequestRecord>(
+        `/repair-requests/${repairRequestId}`,
+        {
+          status: "dismissed",
+          completedBy: "agent",
+          resultSummary: reason,
+        },
+      );
+      return toolResult({
+        dismissed: true,
+        request: mapRepairRequest(request),
+        reason,
+      });
+    }
     case "devpilot_watch_annotations": {
-      const { sessionId, batchWindowSeconds, timeoutSeconds } = WatchSchema.parse(input);
+      const { sessionId, batchWindowSeconds, timeoutSeconds } =
+        WatchSchema.parse(input);
       const pending = await drainPending(sessionId);
       if (pending.annotations.length > 0) {
         return toolResult({
@@ -501,12 +290,82 @@ async function handleTool(name: string, input: unknown) {
 
       throw new Error(result.message);
     }
+    case "devpilot_watch_stability_items": {
+      const { sessionId, batchWindowSeconds, timeoutSeconds } =
+        WatchSchema.parse(input);
+      const openItems = await drainOpenStabilityItems(sessionId);
+      if (openItems.items.length > 0) {
+        return toolResult({
+          count: openItems.count,
+          items: openItems.items.map(mapStabilityItem),
+        });
+      }
+
+      const result = await watchForStabilityItems(
+        sessionId,
+        batchWindowSeconds * 1000,
+        timeoutSeconds * 1000,
+      );
+
+      if (result.type === "items") {
+        return toolResult({
+          count: result.items.length,
+          items: result.items.map(mapStabilityItem),
+        });
+      }
+
+      if (result.type === "timeout") {
+        return toolResult({
+          count: 0,
+          items: [],
+          message: `No new open stability items within ${timeoutSeconds} seconds`,
+        });
+      }
+
+      throw new Error(result.message);
+    }
+    case "devpilot_watch_repair_requests": {
+      const { sessionId, batchWindowSeconds, timeoutSeconds } =
+        WatchSchema.parse(input);
+      const openRequests = await drainOpenRepairRequests(sessionId);
+      if (openRequests.items.length > 0) {
+        return toolResult({
+          count: openRequests.count,
+          requests: openRequests.items.map(mapRepairRequest),
+        });
+      }
+
+      const result = await watchForRepairRequests(
+        sessionId,
+        batchWindowSeconds * 1000,
+        timeoutSeconds * 1000,
+      );
+
+      if (result.type === "requests") {
+        return toolResult({
+          count: result.requests.length,
+          requests: result.requests.map(mapRepairRequest),
+        });
+      }
+
+      if (result.type === "timeout") {
+        return toolResult({
+          count: 0,
+          requests: [],
+          message: `No new open repair requests within ${timeoutSeconds} seconds`,
+        });
+      }
+
+      throw new Error(result.message);
+    }
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
 }
 
-export async function startMcpServer(baseUrl = "http://localhost:5213"): Promise<Server> {
+export async function startMcpServer(
+  baseUrl = "http://localhost:5213",
+): Promise<Server> {
   setHttpBaseUrl(baseUrl);
 
   const server = new Server(

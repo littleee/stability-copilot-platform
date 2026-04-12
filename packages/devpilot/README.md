@@ -20,6 +20,10 @@ npm install @littleee/devpilot
 - element, text, and area annotations
 - local session panel with annotation status tracking
 - structured export for AI coding workflows
+- optional stability workflow with manual issue capture
+- optional auto observation for runtime errors and failed requests
+- explicit repair request flow instead of automatic code modification
+- optional MCP sync when an `endpoint` is provided
 
 ## Zero-config Mount
 
@@ -36,6 +40,36 @@ mountDevPilot({
   defaultOpen: false,
 });
 ```
+
+## Feature Flags
+
+`DevPilot` is designed as a composable product surface:
+
+- core annotation: enabled by default
+- stability module: opt-in
+- MCP sync: opt-in, or enabled when `endpoint` is provided
+
+```ts
+mountDevPilot({
+  features: {
+    stability: true,
+    mcp: true,
+  },
+  endpoint: "http://127.0.0.1:4748",
+});
+```
+
+If you want the stability module without remote sync:
+
+```ts
+mountDevPilot({
+  features: {
+    stability: true,
+  },
+});
+```
+
+When `stability` and `mcp` are both enabled, clicking the `修复` action in the stability panel creates an explicit repair request for AI agents. DevPilot does not automatically modify code after annotation.
 
 ## React
 
@@ -65,4 +99,11 @@ mountDevPilot();
 
 ## Current Scope
 
-`@littleee/devpilot` currently focuses on page annotation and structured feedback capture. MCP integration, runtime stability workflows, and automated remediation are planned next steps rather than shipped behavior in `0.1.0`.
+`@littleee/devpilot` is designed as a composable surface:
+
+- `Core`: page annotation and export
+- `Core + Stability`: issue capture, observation, and explicit repair requests
+- `Core + MCP`: remote session sync for agents
+- `Core + Stability + MCP`: collaborative repair loops with Claude / Cursor
+
+DevPilot does not automatically modify code after annotation or observation. Repairs are created only when the user explicitly clicks `修复`.

@@ -2,9 +2,16 @@ import {
   isDevPilotAnnotationStatus,
   type DevPilotAnnotation,
   type DevPilotAnnotationStatus,
+  isDevPilotStabilitySeverity,
+  isDevPilotStabilityStatus,
+  type DevPilotStabilityItem,
+  type DevPilotStabilitySeverity,
+  type DevPilotStabilityStatus,
 } from "./types";
 
 const ANNOTATION_PREFIX = "devpilot.annotations:";
+const STABILITY_PREFIX = "devpilot.stability:";
+const OBSERVATION_PREFIX = "devpilot.observation:";
 const POSITION_KEY = "devpilot.position";
 const SESSION_PREFIX = "devpilot.session:";
 
@@ -30,8 +37,40 @@ function getAnnotationKey(pathname: string): string {
   return `${ANNOTATION_PREFIX}${pathname}`;
 }
 
+function getStabilityKey(pathname: string): string {
+  return `${STABILITY_PREFIX}${pathname}`;
+}
+
 function getSessionKey(pathname: string): string {
   return `${SESSION_PREFIX}${pathname}`;
+}
+
+function getObservationKey(pathname: string): string {
+  return `${OBSERVATION_PREFIX}${pathname}`;
+}
+
+function normalizeStabilityStatus(value: unknown): DevPilotStabilityStatus {
+  return isDevPilotStabilityStatus(value) ? value : "open";
+}
+
+function normalizeStabilitySeverity(value: unknown): DevPilotStabilitySeverity {
+  return isDevPilotStabilitySeverity(value) ? value : "high";
+}
+
+function normalizeStabilityItem(
+  item: DevPilotStabilityItem,
+): DevPilotStabilityItem {
+  return {
+    ...item,
+    status: normalizeStabilityStatus(item.status),
+    severity: normalizeStabilitySeverity(item.severity),
+    context: {
+      ...item.context,
+      openAnnotationComments: Array.isArray(item.context?.openAnnotationComments)
+        ? item.context.openAnnotationComments.filter((entry) => typeof entry === "string")
+        : [],
+    },
+  };
 }
 
 export function loadAnnotations(pathname: string): DevPilotAnnotation[] {
@@ -63,6 +102,38 @@ export function saveAnnotations(pathname: string, annotations: DevPilotAnnotatio
   }
 }
 
+export function loadStabilityItems(pathname: string): DevPilotStabilityItem[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(getStabilityKey(pathname));
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw) as DevPilotStabilityItem[];
+    return Array.isArray(parsed) ? parsed.map(normalizeStabilityItem) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStabilityItems(
+  pathname: string,
+  items: DevPilotStabilityItem[],
+): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(getStabilityKey(pathname), JSON.stringify(items));
+  } catch {
+    // Ignore localStorage failures.
+  }
+}
+
 export function loadSessionId(pathname: string): string | null {
   if (typeof window === "undefined") {
     return null;
@@ -72,6 +143,30 @@ export function loadSessionId(pathname: string): string | null {
     return window.localStorage.getItem(getSessionKey(pathname));
   } catch {
     return null;
+  }
+}
+
+export function loadObservationEnabled(pathname: string): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    return window.localStorage.getItem(getObservationKey(pathname)) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function saveObservationEnabled(pathname: string, enabled: boolean): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(getObservationKey(pathname), String(enabled));
+  } catch {
+    // Ignore localStorage failures.
   }
 }
 
