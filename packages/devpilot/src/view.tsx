@@ -194,10 +194,10 @@ const styles = `
   .dl-drag-handle {
     display: inline-grid;
     place-items: center;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     margin-right: 2px;
-    border-radius: 18px;
+    border-radius: 22px;
     color: rgba(255, 255, 255, 0.66);
     cursor: grab;
   }
@@ -208,8 +208,8 @@ const styles = `
   }
 
   .dl-drag-handle .dl-launcher-glyph {
-    width: 15px;
-    height: 15px;
+    width: 18px;
+    height: 18px;
   }
 
   .dl-toolbar-button {
@@ -277,8 +277,8 @@ const styles = `
   }
 
   .dl-toolbar-icon {
-    width: 16px;
-    height: 16px;
+    width: 22px;
+    height: 22px;
     flex: 0 0 auto;
   }
 
@@ -3070,7 +3070,6 @@ function DevPilotApp({
             }}
           >
             <AnnotateIcon />
-            <span className="dl-toolbar-label">标注</span>
             {summary.open > 0 ? <span className="dl-toolbar-count">{summary.open}</span> : null}
           </button>
           {stabilityEnabled ? (
@@ -3080,7 +3079,6 @@ function DevPilotApp({
             onClick={() => togglePanelMode("stability")}
           >
             <StabilityIcon />
-            <span className="dl-toolbar-label">稳定性</span>
             {openStabilityItems.length > 0 ? <span className="dl-toolbar-count">{openStabilityItems.length}</span> : null}
             </button>
           ) : null}
@@ -3090,7 +3088,6 @@ function DevPilotApp({
             onClick={() => togglePanelMode("session")}
           >
             <SessionIcon />
-            <span className="dl-toolbar-label">会话</span>
           </button>
           <button
             className="dl-toolbar-icon-button"

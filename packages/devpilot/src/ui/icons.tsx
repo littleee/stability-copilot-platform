@@ -3,14 +3,12 @@ import React from "react";
 export function DevPilotGlyph() {
   return (
     <svg viewBox="0 0 18 18" aria-hidden="true" className="dl-launcher-glyph">
-      <circle cx="9" cy="9" r="8" fill="currentColor" opacity="0.16" />
-      <circle cx="9" cy="9" r="4" fill="currentColor" />
-      <path
-        d="M13.9 4.4L15.8 2.5M13.9 13.6l1.9 1.9M4.1 4.4L2.2 2.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
+      <g transform="translate(9 9) scale(1.2) rotate(35) translate(-9 -9)">
+        <path
+          d="M9 1.2 L10.8 6.2 L16.5 6.8 L16.5 10 L10.8 9.5 L10 15.8 L8 15.8 L7.2 9.5 L1.5 10 L1.5 6.8 L7.2 6.2 Z"
+          fill="currentColor"
+        />
+      </g>
     </svg>
   );
 }

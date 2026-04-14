@@ -25,8 +25,6 @@ function StepCard(props: { index: number; title: string; body: string }) {
 }
 
 export default function App() {
-  console.log(undefined.a);
-
   const [events, setEvents] = useState<DemoEvent[]>([
     createEvent("Demo ready", "Open DevPilot, create annotations, then inspect them from Claude Code."),
   ]);
