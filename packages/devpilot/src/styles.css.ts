@@ -166,14 +166,16 @@ export const styles = `
     height: 16px;
     padding: 0 5px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.12);
+    background: #3b82f6;
     color: #ffffff;
     font-size: 10px;
+    font-weight: 800;
     line-height: 16px;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.92);
   }
 
   .dl-toolbar-button[data-active="true"] .dl-toolbar-count {
-    background: rgba(255, 255, 255, 0.18);
+    background: #60a5fa;
   }
 
   .dl-toolbar-icon {
@@ -212,7 +214,7 @@ export const styles = `
   }
 
   .dl-toolbar-icon-button[data-active="true"] {
-    background: #2f6fed;
+    background: #60a5fa;
     color: #ffffff;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   }
@@ -262,6 +264,16 @@ export const styles = `
     border-radius: 4px;
     background: rgba(34, 197, 94, 0.02);
     box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.08);
+    pointer-events: none;
+    animation: dl-highlight-enter 120ms ease-out;
+  }
+
+  .dl-text-selection-focus {
+    position: fixed;
+    border: 2px solid rgba(37, 99, 235, 0.72);
+    border-radius: 4px;
+    background: rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
     pointer-events: none;
     animation: dl-highlight-enter 120ms ease-out;
   }

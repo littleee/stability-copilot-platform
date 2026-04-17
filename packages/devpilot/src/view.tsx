@@ -363,6 +363,18 @@ function DevPilotApp({
         />
       ) : null}
 
+      {annotationsHook.selection?.kind === "text" ? (
+        <div
+          className="dl-text-selection-focus"
+          style={{
+            left: annotationsHook.selection.rect.left,
+            top: annotationsHook.selection.rect.top,
+            width: annotationsHook.selection.rect.width,
+            height: annotationsHook.selection.rect.height,
+          }}
+        />
+      ) : null}
+
       {activeFocusAnnotation ? (
         <>
           <div
