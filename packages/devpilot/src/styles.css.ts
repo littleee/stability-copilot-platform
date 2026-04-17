@@ -270,12 +270,13 @@ export const styles = `
 
   .dl-text-selection-focus {
     position: fixed;
-    border: 2px solid rgba(37, 99, 235, 0.72);
+    border: 2px solid #3b82f6;
     border-radius: 4px;
-    background: rgba(37, 99, 235, 0.12);
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+    background: rgba(59, 130, 246, 0.35);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22);
     pointer-events: none;
     animation: dl-highlight-enter 120ms ease-out;
+    z-index: 2147483601;
   }
 
   .dl-active-focus {
