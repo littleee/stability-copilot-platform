@@ -20,6 +20,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Reduced `view.tsx` from ~3,200 lines to ~400 lines, improving maintainability and build performance.
 
+## [0.2.0] - 2026-04-19
+
+### Added
+- Added richer AI handoff task packets with selector candidates, grouped elements, computed style snapshots, nearby elements, and source hints.
+- Added optional screenshot-ready metadata fields in the exported task packet structure.
+- Added browser-first settings sections for preferences, features, and connection state.
+
+### Changed
+- Reframed the primary browser workflow around `annotate -> copy to AI`, with Stability Copilot as an optional enhancement.
+- Unified toolbar and panel copy actions around the same task packet pipeline.
+- Published a true ESM entrypoint alongside the CommonJS build for modern bundlers.
+
+### Fixed
+- Kept annotation context intact across MCP persistence and reloads.
+- Improved toolbar icon alignment and visual consistency.
+
 ## [0.1.0] - 2024-04-10
 
 ### Added

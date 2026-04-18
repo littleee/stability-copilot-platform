@@ -8,6 +8,8 @@ type ParsedArgs = {
   httpUrl: string;
   mcpOnly: boolean;
   httpOnly: boolean;
+  portWasExplicit: boolean;
+  httpUrlWasExplicit: boolean;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -16,6 +18,8 @@ function parseArgs(argv: string[]): ParsedArgs {
   let httpUrl = "http://localhost:5213";
   let mcpOnly = false;
   let httpOnly = false;
+  let portWasExplicit = false;
+  let httpUrlWasExplicit = false;
 
   for (let index = 0; index < normalizedArgv.length; index += 1) {
     const arg = normalizedArgv[index];
@@ -24,6 +28,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       const nextPort = Number.parseInt(normalizedArgv[index + 1], 10);
       if (!Number.isNaN(nextPort) && nextPort > 0 && nextPort < 65536) {
         port = nextPort;
+        portWasExplicit = true;
         if (!normalizedArgv.includes("--http-url")) {
           httpUrl = `http://localhost:${port}`;
         }
@@ -34,6 +39,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 
     if (arg === "--http-url" && normalizedArgv[index + 1]) {
       httpUrl = normalizedArgv[index + 1];
+      httpUrlWasExplicit = true;
       index += 1;
       continue;
     }
@@ -48,7 +54,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
   }
 
-  return { port, httpUrl, mcpOnly, httpOnly };
+  return { port, httpUrl, mcpOnly, httpOnly, portWasExplicit, httpUrlWasExplicit };
 }
 
 export { startHttpServer } from "./http.js";
@@ -57,17 +63,25 @@ export { createStore } from "./store.js";
 export type * from "./types.js";
 
 async function main(): Promise<void> {
-  const { port, httpUrl, mcpOnly, httpOnly } = parseArgs(process.argv.slice(2));
+  const { port, httpUrl, mcpOnly, httpOnly, portWasExplicit, httpUrlWasExplicit } = parseArgs(
+    process.argv.slice(2),
+  );
+  let resolvedHttpUrl = httpUrl;
 
   if (!mcpOnly) {
-    startHttpServer(port);
+    const started = await startHttpServer(port, undefined, {
+      allowPortFallback: !portWasExplicit,
+    });
+    if (!httpUrlWasExplicit) {
+      resolvedHttpUrl = started.url;
+    }
   }
 
   if (httpOnly) {
     return;
   }
 
-  await startMcpServer(httpUrl);
+  await startMcpServer(resolvedHttpUrl);
 }
 
 main().catch((error) => {

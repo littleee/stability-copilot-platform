@@ -1,6 +1,6 @@
 {
   "name": "@littleee/devpilot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A page-native annotation toolbar for collecting UI feedback and exporting it for AI-assisted code changes.",
   "license": "MIT",
   "main": "./dist/index.js",

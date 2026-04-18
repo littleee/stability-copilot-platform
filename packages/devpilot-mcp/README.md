@@ -22,8 +22,11 @@ npm install @littleee/devpilot-mcp
 ## 启动
 
 ```bash
-npx @littleee/devpilot-mcp server --port 5213
+npx @littleee/devpilot-mcp server
 ```
+
+默认会优先使用 `5213` 端口；如果这个端口已被占用，会自动尝试下一个可用端口。  
+如果你显式传了 `--port`，则会固定使用该端口，并在端口冲突时给出清晰报错。
 
 也可以只启动 MCP stdio，并指向一个已存在的 HTTP bridge：
 
