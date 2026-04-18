@@ -29,7 +29,7 @@
     }
   },
   "bin": {
-    "devpilot-mcp": "./dist/index.js"
+    "devpilot-mcp": "dist/index.js"
   },
   "publishConfig": {
     "access": "public"
