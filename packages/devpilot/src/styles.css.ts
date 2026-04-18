@@ -178,6 +178,17 @@ export const styles = `
     background: #60a5fa;
   }
 
+  .dl-toolbar-dot {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #ef4444;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.92);
+  }
+
   .dl-toolbar-icon {
     width: 20px;
     height: 20px;
@@ -230,6 +241,12 @@ export const styles = `
 
   .dl-toolbar-icon-button[data-copied="true"] {
     color: #4ade80;
+  }
+
+  .dl-toolbar-icon-button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
   }
 
   .dl-highlight {
@@ -837,6 +854,61 @@ export const styles = `
   .dl-settings-indicator[data-status="reconnecting"] {
     background: #f59e0b;
     box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.16);
+  }
+
+  .dl-settings-switch-row {
+    cursor: pointer;
+  }
+
+  .dl-switch {
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+    flex: 0 0 auto;
+  }
+
+  .dl-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .dl-switch-track {
+    display: block;
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.22);
+    transition: background 160ms ease;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .dl-switch input:checked + .dl-switch-track {
+    background: #3b82f6;
+  }
+
+  .dl-switch input:focus-visible + .dl-switch-track {
+    outline: 2px solid #60a5fa;
+    outline-offset: 2px;
+  }
+
+  .dl-switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 160ms ease;
+    pointer-events: none;
+  }
+
+  .dl-switch input:checked + .dl-switch-track .dl-switch-thumb {
+    transform: translateX(16px);
   }
 
   .dl-session-panel,

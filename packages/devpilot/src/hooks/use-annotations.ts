@@ -37,8 +37,6 @@ export function useAnnotations(options: UseAnnotationsOptions) {
   const {
     pathname,
     syncEndpoint,
-    currentSessionId,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     currentSessionIdRef,
     annotationsRef,
     setIsOpen,
@@ -175,7 +173,7 @@ export function useAnnotations(options: UseAnnotationsOptions) {
 
       onAnnotationDelete?.(annotationId);
 
-      if (syncEndpoint) {
+      if (syncEndpoint && currentSessionIdRef.current) {
         deleteRemoteAnnotation(syncEndpoint, annotationId).catch((error) => {
           pendingDeletedAnnotationIdsRef.current.delete(annotationId);
           const message = "[DevPilot] Failed to delete resolved annotation";
@@ -202,7 +200,7 @@ export function useAnnotations(options: UseAnnotationsOptions) {
     }
     setActiveAnnotationId(annotationId);
 
-    if (syncEndpoint) {
+    if (syncEndpoint && currentSessionIdRef.current) {
       updateRemoteAnnotation(syncEndpoint, annotationId, {
         status: nextStatus,
         updatedAt: nextUpdatedAt,
@@ -232,7 +230,7 @@ export function useAnnotations(options: UseAnnotationsOptions) {
       setDraft("");
     }
 
-    if (syncEndpoint) {
+    if (syncEndpoint && currentSessionIdRef.current) {
       deleteRemoteAnnotation(syncEndpoint, annotationId).catch((error) => {
         pendingDeletedAnnotationIdsRef.current.delete(annotationId);
         const message = "[DevPilot] Failed to delete annotation";
@@ -242,14 +240,36 @@ export function useAnnotations(options: UseAnnotationsOptions) {
     }
   };
 
-  const buildAnnotationTaskPacketText = async () => {
+  const buildTaskPacketText = async (
+    stabilityItems?: import("../types").DevPilotStabilityItem[],
+  ) => {
     const { createDevPilotTaskPacket, formatDevPilotTaskPacketMarkdown } = await import("../task-packet");
+
+    const annotationCount = openAnnotations.length;
+    const stabilityCount = stabilityItems?.length ?? 0;
+    const totalCount = annotationCount + stabilityCount;
+
+    const taskTitle =
+      stabilityCount > 0 && annotationCount > 0
+        ? `Fix ${totalCount} issues (${annotationCount} annotation${annotationCount === 1 ? "" : "s"} + ${stabilityCount} stability) on ${pathname}`
+        : stabilityCount > 0
+          ? `Fix ${stabilityCount} stability issue${stabilityCount === 1 ? "" : "s"} on ${pathname}`
+          : `Fix ${annotationCount} annotation${annotationCount === 1 ? "" : "s"} on ${pathname}`;
+
+    const description =
+      stabilityCount > 0 && annotationCount > 0
+        ? `There are ${annotationCount} open annotation(s) and ${stabilityCount} stability issue(s) on this page that need attention.`
+        : stabilityCount > 0
+          ? `There are ${stabilityCount} stability issue(s) on this page that need attention.`
+          : `There are ${annotationCount} open annotation(s) on this page that need attention.`;
+
     const packet = createDevPilotTaskPacket({
-      type: "annotation",
-      taskTitle: `Fix ${openAnnotations.length} annotation${openAnnotations.length === 1 ? "" : "s"} on ${pathname}`,
-      description: `There are ${openAnnotations.length} open annotation(s) on this page that need attention.`,
-      desiredOutcome: "All open annotations are addressed with minimal safe code changes.",
+      type: stabilityCount > 0 ? "repair" : "annotation",
+      taskTitle,
+      description,
+      desiredOutcome: "All open issues are addressed with minimal safe code changes.",
       annotations: openAnnotations,
+      stabilityItems,
       pathname,
       pageTitle: document.title || "Untitled Page",
       url: window.location.href,
@@ -272,13 +292,15 @@ export function useAnnotations(options: UseAnnotationsOptions) {
   };
 
   const handleCopyAnnotations = async () => {
-    const text = await buildAnnotationTaskPacketText();
+    const text = await buildTaskPacketText();
     const didCopy = await copyTextToClipboard(text);
     setCopyState(didCopy ? "copied" : "failed");
   };
 
-  const handleCopyTaskPacket = async () => {
-    const text = await buildAnnotationTaskPacketText();
+  const handleCopyTaskPacket = async (
+    stabilityItems?: import("../types").DevPilotStabilityItem[],
+  ) => {
+    const text = await buildTaskPacketText(stabilityItems);
     const didCopy = await copyTextToClipboard(text);
     setCopyState(didCopy ? "copied" : "failed");
   };
@@ -317,7 +339,7 @@ export function useAnnotations(options: UseAnnotationsOptions) {
       setActiveAnnotationId(editingId);
       onAnnotationUpdate?.(updatedAnnotation);
 
-      if (syncEndpoint) {
+      if (syncEndpoint && currentSessionIdRef.current) {
         updateRemoteAnnotation(syncEndpoint, editingId, updatedAnnotation).catch((error) => {
           const message = "[DevPilot] Failed to update annotation";
           console.warn(message, error);
@@ -348,8 +370,8 @@ export function useAnnotations(options: UseAnnotationsOptions) {
       setActiveAnnotationId(annotation.id);
       onAnnotationAdd?.(annotation);
 
-      if (syncEndpoint && currentSessionId) {
-        syncRemoteAnnotation(syncEndpoint, currentSessionId, annotation).catch((error) => {
+      if (syncEndpoint && currentSessionIdRef.current) {
+        syncRemoteAnnotation(syncEndpoint, currentSessionIdRef.current, annotation).catch((error) => {
           const message = "[DevPilot] Failed to create remote annotation";
           console.warn(message, error);
           onNetworkError?.(message);

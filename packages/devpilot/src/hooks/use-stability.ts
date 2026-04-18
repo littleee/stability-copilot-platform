@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { startAutoObservation } from "../observation/collectors";
 import {
-  createDevPilotStabilityExportPayload,
   createDevPilotStabilityRepairPayload,
-  formatDevPilotStabilityExportMarkdown,
   formatDevPilotStabilityRepairMarkdown,
 } from "../stability-output";
 import {
@@ -17,9 +15,7 @@ import {
   trimObservationText,
 } from "../shared/runtime";
 import {
-  loadObservationEnabled,
   loadStabilityItems,
-  saveObservationEnabled,
   saveStabilityItems,
 } from "../storage";
 import {
@@ -83,9 +79,6 @@ export function useStability(options: UseStabilityOptions) {
   const [repairRequests, setRepairRequests] = useState<DevPilotRepairRequestRecord[]>([]);
   const [repairTargetId, setRepairTargetId] = useState<string | null>(null);
   const [repairState, setRepairState] = useState<"idle" | "requested" | "failed">("idle");
-  const [autoObservationEnabled, setAutoObservationEnabled] = useState(() =>
-    stabilityEnabled ? loadObservationEnabled(pathname) : false,
-  );
   const observationFingerprintRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
@@ -97,21 +90,12 @@ export function useStability(options: UseStabilityOptions) {
 
   useEffect(() => {
     if (!stabilityEnabled) {
-      return;
-    }
-
-    saveObservationEnabled(pathname, autoObservationEnabled);
-  }, [autoObservationEnabled, pathname, stabilityEnabled]);
-
-  useEffect(() => {
-    if (!stabilityEnabled) {
-      setAutoObservationEnabled(false);
+      setStabilityItems([]);
       setRepairRequests([]);
       return;
     }
 
     setStabilityItems(loadStabilityItems(pathname));
-    setAutoObservationEnabled(loadObservationEnabled(pathname));
     setRepairRequests([]);
   }, [pathname, stabilityEnabled]);
 
@@ -145,7 +129,7 @@ export function useStability(options: UseStabilityOptions) {
   }, [repairState]);
 
   useEffect(() => {
-    if (!stabilityEnabled || !autoObservationEnabled) {
+    if (!stabilityEnabled) {
       return undefined;
     }
     return startAutoObservation({
@@ -161,7 +145,7 @@ export function useStability(options: UseStabilityOptions) {
     });
     // recordObservedStabilityItem is intentionally omitted to avoid re-registering observers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoObservationEnabled, pathname, stabilityEnabled, syncEndpoint]);
+  }, [pathname, stabilityEnabled, syncEndpoint]);
 
   const openStabilityItems = useMemo(
     () => stabilityItems.filter((item) => item.status !== "resolved"),
@@ -323,7 +307,7 @@ export function useStability(options: UseStabilityOptions) {
       reproSteps?: string;
       fixGoal?: string;
     }) => {
-      if (!stabilityEnabled || !autoObservationEnabled) {
+      if (!stabilityEnabled) {
         return;
       }
 
@@ -374,7 +358,6 @@ export function useStability(options: UseStabilityOptions) {
       }
     },
     [
-      autoObservationEnabled,
       buildObservationContext,
       currentSessionIdRef,
       onNetworkError,
@@ -385,17 +368,50 @@ export function useStability(options: UseStabilityOptions) {
   );
 
   const handleCopyStabilityItems = async (items: DevPilotStabilityItem[]) => {
-    const payload = createDevPilotStabilityExportPayload({
-      items,
+    const { createDevPilotTaskPacket, formatDevPilotTaskPacketMarkdown } = await import(
+      "../task-packet"
+    );
+
+    const annotationCount = openAnnotations.length;
+    const stabilityCount = items.length;
+    const totalCount = annotationCount + stabilityCount;
+
+    const taskTitle =
+      annotationCount > 0
+        ? `Fix ${totalCount} issues (${stabilityCount} stability + ${annotationCount} annotation${annotationCount === 1 ? "" : "s"}) on ${pathname}`
+        : `Fix ${stabilityCount} stability issue${stabilityCount === 1 ? "" : "s"} on ${pathname}`;
+
+    const description =
+      annotationCount > 0
+        ? `There are ${stabilityCount} stability issue(s) and ${annotationCount} annotation(s) on this page that need attention.`
+        : `There are ${stabilityCount} stability issue(s) on this page that need attention.`;
+
+    const packet = createDevPilotTaskPacket({
+      type: annotationCount > 0 ? "repair" : "stability",
+      taskTitle,
+      description,
+      desiredOutcome: "All stability issues are addressed with minimal safe code changes.",
+      annotations: openAnnotations,
+      stabilityItems: items,
       pathname,
-      title: document.title || "Untitled Page",
+      pageTitle: document.title || "Untitled Page",
       url: window.location.href,
       viewport: {
         width: window.innerWidth,
         height: window.innerHeight,
       },
+      platform: window.navigator?.platform,
+      language: window.navigator?.language,
+      screen:
+        window.screen
+          ? {
+              width: window.screen.width,
+              height: window.screen.height,
+            }
+          : undefined,
+      referrer: document.referrer || undefined,
     });
-    const text = formatDevPilotStabilityExportMarkdown(payload);
+    const text = formatDevPilotTaskPacketMarkdown(packet);
     const didCopy = await copyTextToClipboard(text);
     setStabilityCopyState(didCopy ? "copied" : "failed");
   };
@@ -629,8 +645,6 @@ export function useStability(options: UseStabilityOptions) {
     setRepairTargetId,
     repairState,
     setRepairState,
-    autoObservationEnabled,
-    setAutoObservationEnabled,
     observationFingerprintRef,
     openStabilityItems,
     resolvedStabilityItems,

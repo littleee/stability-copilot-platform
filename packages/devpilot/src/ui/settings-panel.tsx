@@ -10,6 +10,8 @@ interface SettingsPanelProps {
   syncEndpoint?: string;
   sessionId: string | null;
   sseStatus: SseStatus;
+  stabilityCopilotEnabled: boolean;
+  onToggleStabilityCopilot: () => void;
   onClose: () => void;
 }
 
@@ -32,6 +34,8 @@ export function SettingsPanel({
   syncEndpoint,
   sessionId,
   sseStatus,
+  stabilityCopilotEnabled,
+  onToggleStabilityCopilot,
   onClose,
 }: SettingsPanelProps) {
   const mcpStatus = syncEndpoint ? "connected" : "disabled";
@@ -57,6 +61,29 @@ export function SettingsPanel({
       </div>
 
       <div className="dl-session-body">
+        <div className="dl-session-section">
+          <div className="dl-session-section-header">
+            <h4 className="dl-session-section-title">功能</h4>
+          </div>
+          <div className="dl-session-detail">
+            <div className="dl-detail-card">
+              <label className="dl-settings-row dl-settings-switch-row" title="开启后将自动捕获 JS 异常、Promise 拒绝和接口失败">
+                <span className="dl-settings-name">稳定性副驾</span>
+                <span className="dl-switch">
+                  <input
+                    type="checkbox"
+                    checked={stabilityCopilotEnabled}
+                    onChange={onToggleStabilityCopilot}
+                  />
+                  <span className="dl-switch-track" aria-hidden="true">
+                    <span className="dl-switch-thumb" aria-hidden="true" />
+                  </span>
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
         <div className="dl-session-section">
           <div className="dl-session-section-header">
             <h4 className="dl-session-section-title">连接</h4>

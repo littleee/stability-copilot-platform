@@ -17,7 +17,12 @@ import {
   clampFloatingPosition,
   getDefaultFloatingPosition,
 } from "./shared/runtime";
-import { loadFloatingPosition, saveFloatingPosition } from "./storage";
+import {
+  loadFloatingPosition,
+  saveFloatingPosition,
+  loadStabilityCopilotEnabled,
+  saveStabilityCopilotEnabled,
+} from "./storage";
 import {
   AnnotateIcon,
   CheckIcon,
@@ -60,7 +65,9 @@ function DevPilotApp({
     () => resolveDevPilotFeatures(features, endpoint),
     [endpoint, features],
   );
-  const stabilityEnabled = resolvedFeatures.stability;
+  const [stabilityCopilotEnabled, setStabilityCopilotEnabled] = useState(() =>
+    resolvedFeatures.stability || loadStabilityCopilotEnabled(),
+  );
   const syncEndpoint = resolvedFeatures.mcp ? endpoint : undefined;
 
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -101,7 +108,7 @@ function DevPilotApp({
   });
 
   const stabilityHook = useStability({
-    stabilityEnabled,
+    stabilityEnabled: stabilityCopilotEnabled,
     pathname,
     syncEndpoint,
     currentSessionId: null,
@@ -117,7 +124,7 @@ function DevPilotApp({
   const { currentSessionId, sseStatus } = useRemoteSessionSync({
     pathname,
     syncEndpoint,
-    stabilityEnabled,
+    stabilityEnabled: stabilityCopilotEnabled,
     annotations: annotationsHook.annotations,
     stabilityItems: stabilityHook.stabilityItems,
     pendingDeletedAnnotationIdsRef: annotationsHook.pendingDeletedAnnotationIdsRef,
@@ -172,10 +179,10 @@ function DevPilotApp({
   ]);
 
   useEffect(() => {
-    if (!stabilityEnabled && mode === "stability") {
+    if (!stabilityCopilotEnabled && mode === "stability") {
       setMode("annotate");
     }
-  }, [mode, stabilityEnabled]);
+  }, [mode, stabilityCopilotEnabled]);
 
   useEffect(() => {
     const syncPosition = () => {
@@ -282,7 +289,7 @@ function DevPilotApp({
 
   const togglePanelMode = (nextMode: DevPilotMode) => {
     setIsSettingsOpen(false);
-    if (nextMode === "stability" && !stabilityEnabled) {
+    if (nextMode === "stability" && !stabilityCopilotEnabled) {
       setMode("annotate");
       return;
     }
@@ -292,6 +299,9 @@ function DevPilotApp({
   const toggleSettingsPanel = () => {
     setIsSettingsOpen((current) => !current);
   };
+
+  const isConnectionDisconnected =
+    Boolean(syncEndpoint) && sseStatus !== "connected";
 
   const toolbarRect = toolbarRef.current?.getBoundingClientRect();
   const panelWidth = 392;
@@ -572,6 +582,14 @@ function DevPilotApp({
           syncEndpoint={syncEndpoint}
           sessionId={currentSessionId}
           sseStatus={sseStatus}
+          stabilityCopilotEnabled={stabilityCopilotEnabled}
+          onToggleStabilityCopilot={() => {
+            setStabilityCopilotEnabled((current) => {
+              const next = !current;
+              saveStabilityCopilotEnabled(next);
+              return next;
+            });
+          }}
           onClose={() => setIsSettingsOpen(false)}
         />
       ) : null}
@@ -608,7 +626,7 @@ function DevPilotApp({
               <span className="dl-toolbar-count">{annotationsHook.summary.open}</span>
             ) : null}
           </button>
-          {stabilityEnabled ? (
+          {stabilityCopilotEnabled ? (
             <button
               className="dl-toolbar-icon-button"
               data-active={!isSettingsOpen && mode === "stability"}
@@ -626,8 +644,9 @@ function DevPilotApp({
             className="dl-toolbar-icon-button"
             data-kind="secondary"
             data-copied={annotationsHook.copyState === "copied"}
+            disabled={annotationsHook.openAnnotations.length === 0 && stabilityHook.openStabilityItems.length === 0}
             onClick={() => {
-              void annotationsHook.handleCopyTaskPacket();
+              void annotationsHook.handleCopyTaskPacket(stabilityHook.openStabilityItems);
             }}
             title={annotationsHook.copyState === "copied" ? "已复制" : "复制给 AI"}
           >
@@ -638,9 +657,12 @@ function DevPilotApp({
             data-kind="secondary"
             data-active={isSettingsOpen}
             onClick={toggleSettingsPanel}
-            title="设置"
+            title={isConnectionDisconnected ? "连接已断开" : "设置"}
           >
             <SettingsIcon />
+            {isConnectionDisconnected ? (
+              <span className="dl-toolbar-dot" aria-hidden="true" />
+            ) : null}
           </button>
           <div className="dl-toolbar-divider" />
           <button
@@ -677,8 +699,10 @@ function DevPilotApp({
           title="打开 DevPilot"
         >
           <DevPilotGlyph />
-          {annotationsHook.summary.open > 0 ? (
-            <span className="dl-launcher-badge">{annotationsHook.summary.open}</span>
+          {annotationsHook.summary.open + stabilityHook.openStabilityItems.length > 0 ? (
+            <span className="dl-launcher-badge">
+              {annotationsHook.summary.open + stabilityHook.openStabilityItems.length}
+            </span>
           ) : null}
         </button>
       )}
@@ -697,11 +721,10 @@ function DevPilotApp({
         </div>
       ) : null}
 
-      {stabilityEnabled && isOpen && !isSettingsOpen && mode === "stability" ? (
+      {stabilityCopilotEnabled && isOpen && !isSettingsOpen && mode === "stability" ? (
         <StabilityPanel
           panelLeft={panelLeft}
           panelBottom={panelBottom}
-          autoObservationEnabled={stabilityHook.autoObservationEnabled}
           stabilityCopyState={stabilityHook.stabilityCopyState}
           openStabilityItems={stabilityHook.openStabilityItems}
           resolvedStabilityItems={stabilityHook.resolvedStabilityItems}
@@ -714,9 +737,6 @@ function DevPilotApp({
           latestActiveRepairRequest={stabilityHook.latestActiveRepairRequest}
           repairTargetId={stabilityHook.repairTargetId}
           repairState={stabilityHook.repairState}
-          onToggleObservation={() =>
-            stabilityHook.setAutoObservationEnabled((current) => !current)
-          }
           onCopyOpenItems={() => {
             void stabilityHook.handleCopyStabilityItems(stabilityHook.openStabilityItems);
           }}

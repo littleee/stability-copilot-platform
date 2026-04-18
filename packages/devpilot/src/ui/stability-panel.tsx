@@ -28,7 +28,6 @@ interface StabilitySummary {
 interface StabilityPanelProps {
   panelLeft: number;
   panelBottom: number;
-  autoObservationEnabled: boolean;
   stabilityCopyState: CopyState;
   openStabilityItems: DevPilotStabilityItem[];
   resolvedStabilityItems: DevPilotStabilityItem[];
@@ -41,7 +40,6 @@ interface StabilityPanelProps {
   latestActiveRepairRequest: DevPilotRepairRequestRecord | null;
   repairTargetId: string | null;
   repairState: RepairState;
-  onToggleObservation: () => void;
   onCopyOpenItems: () => void;
   onOpenComposer: (item?: DevPilotStabilityItem) => void;
   onClose: () => void;
@@ -65,7 +63,6 @@ interface StabilityPanelProps {
 export function StabilityPanel({
   panelLeft,
   panelBottom,
-  autoObservationEnabled,
   stabilityCopyState,
   openStabilityItems,
   resolvedStabilityItems,
@@ -78,7 +75,6 @@ export function StabilityPanel({
   latestActiveRepairRequest,
   repairTargetId,
   repairState,
-  onToggleObservation,
   onCopyOpenItems,
   onOpenComposer,
   onClose,
@@ -111,14 +107,6 @@ export function StabilityPanel({
         </button>
       </div>
       <div className="dl-stability-header-actions">
-        <button
-          className="dl-popup-action"
-          data-kind={autoObservationEnabled ? "primary" : "ghost"}
-          onClick={onToggleObservation}
-          title="开启后将自动记录 JS 异常、Promise 拒绝和接口失败"
-        >
-          {autoObservationEnabled ? "关闭自动观察" : "开启自动观察"}
-        </button>
         <button
           className="dl-popup-action"
           data-kind={
@@ -162,12 +150,6 @@ export function StabilityPanel({
         <div className="dl-summary-card">
           <span className="dl-summary-label">紧急</span>
           <span className="dl-summary-value">{stabilitySummary.critical}</span>
-        </div>
-        <div className="dl-summary-card">
-          <span className="dl-summary-label">自动观察</span>
-          <span className="dl-summary-value">
-            {autoObservationEnabled ? "开" : "关"}
-          </span>
         </div>
       </div>
       <div className="dl-session-body dl-stability-panel-body">

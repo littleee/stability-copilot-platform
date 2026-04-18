@@ -12,7 +12,7 @@ import {
 
 const ANNOTATION_PREFIX = "devpilot.annotations:";
 const STABILITY_PREFIX = "devpilot.stability:";
-const OBSERVATION_PREFIX = "devpilot.observation:";
+const STABILITY_COPILOT_KEY = "devpilot.stability-copilot";
 const POSITION_KEY = "devpilot.position";
 const SESSION_PREFIX = "devpilot.session:";
 
@@ -44,10 +44,6 @@ function getStabilityKey(pathname: string): string {
 
 function getSessionKey(pathname: string): string {
   return `${SESSION_PREFIX}${pathname}`;
-}
-
-function getObservationKey(pathname: string): string {
-  return `${OBSERVATION_PREFIX}${pathname}`;
 }
 
 function normalizeStabilityStatus(value: unknown): DevPilotStabilityStatus {
@@ -163,25 +159,25 @@ export function loadSessionId(pathname: string): string | null {
   }
 }
 
-export function loadObservationEnabled(pathname: string): boolean {
+export function loadStabilityCopilotEnabled(): boolean {
   if (typeof window === "undefined") {
     return false;
   }
 
   try {
-    return window.localStorage.getItem(getObservationKey(pathname)) === "true";
+    return window.localStorage.getItem(STABILITY_COPILOT_KEY) === "true";
   } catch {
     return false;
   }
 }
 
-export function saveObservationEnabled(pathname: string, enabled: boolean): void {
+export function saveStabilityCopilotEnabled(enabled: boolean): void {
   if (typeof window === "undefined") {
     return;
   }
 
   try {
-    window.localStorage.setItem(getObservationKey(pathname), String(enabled));
+    window.localStorage.setItem(STABILITY_COPILOT_KEY, String(enabled));
   } catch {
     // Ignore localStorage failures.
   }
