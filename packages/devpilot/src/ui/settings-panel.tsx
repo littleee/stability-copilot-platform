@@ -28,6 +28,32 @@ function getSseLabel(status: SseStatus): string {
   }
 }
 
+function getLanguageName(language: string): string {
+  const normalized = language.toLowerCase();
+
+  if (normalized.startsWith("zh-cn") || normalized.startsWith("zh-sg") || normalized === "zh") {
+    return "简体中文";
+  }
+
+  if (normalized.startsWith("zh-tw") || normalized.startsWith("zh-hk") || normalized.startsWith("zh-mo")) {
+    return "繁體中文";
+  }
+
+  if (normalized.startsWith("en")) {
+    return "English";
+  }
+
+  if (normalized.startsWith("ja")) {
+    return "日本語";
+  }
+
+  if (normalized.startsWith("ko")) {
+    return "한국어";
+  }
+
+  return language;
+}
+
 export function SettingsPanel({
   panelLeft,
   panelBottom,
@@ -40,6 +66,9 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   const mcpStatus = syncEndpoint ? "connected" : "disabled";
   const mcpLabel = syncEndpoint ? "协作模式" : "本地模式";
+  const browserLanguage =
+    typeof navigator === "undefined" ? "zh-CN" : navigator.language || "zh-CN";
+  const languageLabel = `${getLanguageName(browserLanguage)} (${browserLanguage})`;
 
   return (
     <section
@@ -61,6 +90,22 @@ export function SettingsPanel({
       </div>
 
       <div className="dl-session-body">
+        <div className="dl-session-section">
+          <div className="dl-session-section-header">
+            <h4 className="dl-session-section-title">偏好</h4>
+          </div>
+          <div className="dl-session-detail">
+            <div className="dl-detail-card">
+              <div className="dl-settings-row">
+                <div className="dl-settings-main">
+                  <span className="dl-settings-name">界面语言</span>
+                  <span className="dl-settings-value">当前跟随浏览器：{languageLabel}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="dl-session-section">
           <div className="dl-session-section-header">
             <h4 className="dl-session-section-title">功能</h4>

@@ -9,7 +9,7 @@ The long-term goal is a single workflow that can:
 - connect browser observations to local code through MCP
 - hand structured tasks to AI tools for assisted or automated fixes
 
-Today, the repository ships the first foundation of that workflow: a browser-native annotation toolbar called `DevPilot`.
+Today, the repository ships the first practical foundation of that workflow: a browser-native toolbar called `DevPilot`.
 
 ## What Exists Today
 
@@ -17,11 +17,18 @@ Current `v0.1.x` capabilities:
 
 - floating in-page toolbar mounted through a Shadow DOM host
 - element, text, and area annotations created directly on the live page
-- local annotation state with status transitions such as `pending`, `acknowledged`, `resolved`, and `dismissed`
-- session panel for reviewing open and closed annotations
-- structured export for sending page feedback to AI coding tools
+- local annotation state with lightweight status tracking
+- one-click AI handoff through structured task-packet export
+- optional Stability Copilot for runtime issues and failed requests
+- optional MCP-backed sync when an endpoint is provided
 
-This makes the current package useful as a lightweight page feedback layer even before MCP and automatic remediation land.
+The current product shape is intentionally simple:
+
+```text
+Annotate -> Copy to AI -> Diagnose / Fix
+```
+
+This makes DevPilot useful today as a lightweight page feedback and AI handoff layer, even before the broader connected repair workflow is fully complete.
 
 ## Where It Is Going
 
@@ -29,7 +36,7 @@ DevPilot is being built toward a broader frontend incident and repair workflow:
 
 - MCP-backed workspace linking from browser context to local source files
 - stability observation for runtime errors, request failures, and incident grouping
-- richer session history that can include AI replies and code actions
+- richer connected workflow history that can include AI replies and code actions
 - AI-assisted and eventually automated fix loops for selected classes of issues
 
 ## Package
@@ -41,6 +48,21 @@ npm install @littleee/devpilot
 ```
 
 Right now the package exports the `DevPilot` mounting API and UI components.
+
+## Product Modes
+
+DevPilot is one product with two usage modes:
+
+- `Local mode`
+  - annotate directly on the page
+  - capture structured browser context
+  - copy a task packet into Claude, Codex, Cursor, or similar tools
+- `Connected mode`
+  - connect the browser session to local engineering workflows through MCP
+  - optionally sync runtime issues and repair requests
+  - support collaborative or agent-assisted repair loops
+
+Most users should be able to start in local mode without any backend setup.
 
 ## Quick Start
 
