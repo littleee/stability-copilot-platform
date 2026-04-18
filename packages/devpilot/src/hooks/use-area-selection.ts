@@ -160,6 +160,7 @@ export function useAreaSelection(options: UseAreaSelectionOptions) {
             matchCount: detail.matchCount,
             nearbyText: detail.nearbyText,
             relatedElements: detail.relatedElements,
+            context: detail.context,
           });
           setDraft("");
           setEditingId(null);
@@ -219,6 +220,7 @@ export function useAreaSelection(options: UseAreaSelectionOptions) {
         matchCount: 1,
         selectedText,
         nearbyText: detail.nearbyText,
+        context: detail.context,
       });
       setDraft("");
       setEditingId(null);
@@ -263,6 +265,7 @@ export function useAreaSelection(options: UseAreaSelectionOptions) {
         pageY: event.clientY + window.scrollY,
         matchCount: 1,
         nearbyText: detail.nearbyText,
+        context: detail.context,
       });
       setDraft("");
       setEditingId(null);

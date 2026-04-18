@@ -46,6 +46,8 @@ type UseRemoteSessionSyncArgs = {
   setRepairRequests: Dispatch<SetStateAction<DevPilotRepairRequestRecord[]>>;
   annotationsRef?: MutableRefObject<DevPilotAnnotation[]>;
   currentSessionIdRef?: MutableRefObject<string | null>;
+  onSessionCreated?: (sessionId: string) => void;
+  onConnectionStateChange?: (state: import("../types").DevPilotConnectionState) => void;
 };
 
 type UseRemoteSessionSyncResult = {
@@ -71,6 +73,8 @@ export function useRemoteSessionSync({
   setRepairRequests,
   annotationsRef: externalAnnotationsRef,
   currentSessionIdRef: externalCurrentSessionIdRef,
+  onSessionCreated,
+  onConnectionStateChange,
 }: UseRemoteSessionSyncArgs): UseRemoteSessionSyncResult {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(() =>
     loadSessionId(pathname),
@@ -97,6 +101,14 @@ export function useRemoteSessionSync({
   }, [currentSessionId]);
 
   useEffect(() => {
+    onConnectionStateChange?.({
+      endpoint: syncEndpoint,
+      status: sseStatus,
+      sessionId: currentSessionId,
+    });
+  }, [sseStatus, currentSessionId, syncEndpoint, onConnectionStateChange]);
+
+  useEffect(() => {
     if (!syncEndpoint) {
       setSseStatus("disabled");
       clearSessionId(pathname);
@@ -121,6 +133,7 @@ export function useRemoteSessionSync({
 
         setCurrentSessionId(session.id);
         saveSessionId(pathname, session.id);
+        onSessionCreated?.(session.id);
       })
       .catch((error) => {
         console.warn("[DevPilot] Failed to ensure remote session:", error);

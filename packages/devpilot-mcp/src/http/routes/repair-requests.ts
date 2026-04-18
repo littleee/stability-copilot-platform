@@ -38,9 +38,23 @@ export const handleRepairRequestRoutes: HttpRouteHandler = async ({
       return true;
     }
 
+    const actorId = (req.headers["x-devpilot-client-id"] as string) || undefined;
+    const idempotencyKey = body.idempotencyKey || `${actorId || "anon"}:${body.stabilityItemId || body.title}`;
+
+    // Check idempotency first
+    if (idempotencyKey) {
+      const existing = store.getRepairRequestByIdempotency?.(idempotencyKey);
+      if (existing) {
+        sendJson(res, 200, existing);
+        return true;
+      }
+    }
+
     const request = store.addRepairRequest(sessionRepairRequestsMatch[1], {
       ...body,
       id: body.id || `req_${Date.now().toString(36)}`,
+      idempotencyKey,
+      actorId,
     });
     if (!request) {
       sendError(res, 404, "Session not found");

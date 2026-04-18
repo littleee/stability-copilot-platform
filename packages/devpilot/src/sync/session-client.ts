@@ -3,7 +3,14 @@ import type {
   DevPilotRepairRequestRecord,
   DevPilotStabilityItem,
 } from "../types";
-import { readJsonResponse } from "./shared";
+import { getDevPilotClientId, readJsonResponse } from "./shared";
+
+function clientHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    "X-DevPilot-Client-Id": getDevPilotClientId(),
+  };
+}
 
 export interface DevPilotRemoteSession {
   id: string;
@@ -36,9 +43,7 @@ export async function ensureRemoteSession(
 ): Promise<DevPilotRemoteSession> {
   const response = await fetch(`${endpoint}/sessions/ensure`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: clientHeaders(),
     body: JSON.stringify(input),
   });
 
@@ -49,7 +54,11 @@ export async function getRemoteSession(
   endpoint: string,
   sessionId: string,
 ): Promise<DevPilotRemoteSessionWithAnnotations> {
-  const response = await fetch(`${endpoint}/sessions/${sessionId}`);
+  const response = await fetch(`${endpoint}/sessions/${sessionId}`, {
+    headers: {
+      "X-DevPilot-Client-Id": getDevPilotClientId(),
+    },
+  });
   return readJsonResponse<DevPilotRemoteSessionWithAnnotations>(
     response,
     "load session",

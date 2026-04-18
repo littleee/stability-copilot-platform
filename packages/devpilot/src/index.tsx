@@ -55,6 +55,13 @@ export function DevPilot(props: DevPilotMountOptions): null {
     props.endpoint,
     props.features?.stability,
     props.features?.mcp,
+    props.onAnnotationAdd,
+    props.onAnnotationUpdate,
+    props.onAnnotationDelete,
+    props.onStabilityObserved,
+    props.onStabilityStatusChange,
+    props.onSessionCreated,
+    props.onConnectionStateChange,
     props.onRepairRequest,
   ]);
 
@@ -74,6 +81,17 @@ export {
   createDevPilotStabilityRepairPayload,
   formatDevPilotStabilityRepairMarkdown,
 } from "./stability-output";
+export {
+  createDevPilotTaskPacket,
+  formatDevPilotTaskPacketJson,
+  formatDevPilotTaskPacketMarkdown,
+} from "./task-packet";
+export type {
+  DevPilotTaskPacket,
+  DevPilotTaskPacketEvidence,
+  DevPilotTaskPacketPageContext,
+  DevPilotTaskPacketTask,
+} from "./task-packet";
 export type {
   DevPilotAnnotation,
   DevPilotController,

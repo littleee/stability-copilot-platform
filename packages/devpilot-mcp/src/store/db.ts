@@ -16,6 +16,36 @@ export function openDatabase(dbPath: string): Database.Database {
   return new Database(dbPath);
 }
 
+type TableInfoRow = {
+  name: string;
+};
+
+function hasColumn(
+  db: Database.Database,
+  tableName: string,
+  columnName: string,
+): boolean {
+  const rows = db
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all() as TableInfoRow[];
+  return rows.some((row) => row.name === columnName);
+}
+
+function ensureColumn(
+  db: Database.Database,
+  tableName: string,
+  columnName: string,
+  columnDefinition: string,
+): void {
+  if (hasColumn(db, tableName, columnName)) {
+    return;
+  }
+
+  db.exec(
+    `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`,
+  );
+}
+
 export function initDatabase(db: Database.Database): void {
   db.exec(`
     PRAGMA journal_mode = WAL;
@@ -49,8 +79,11 @@ export function initDatabase(db: Database.Database): void {
       page_x REAL NOT NULL,
       page_y REAL NOT NULL,
       rect_json TEXT NOT NULL,
+      context_json TEXT,
       resolved_at INTEGER,
       resolved_by TEXT,
+      deleted_at INTEGER,
+      deleted_by TEXT,
       FOREIGN KEY (session_id) REFERENCES sessions(id)
     );
 
@@ -96,10 +129,19 @@ export function initDatabase(db: Database.Database): void {
       completed_at INTEGER,
       completed_by TEXT,
       result_summary TEXT,
+      idempotency_key TEXT UNIQUE,
+      actor_id TEXT,
       FOREIGN KEY (session_id) REFERENCES sessions(id),
       FOREIGN KEY (stability_item_id) REFERENCES stability_items(id)
     );
+  `);
 
+  ensureColumn(db, "annotations", "context_json", "TEXT");
+  ensureColumn(db, "repair_requests", "idempotency_key", "TEXT");
+  ensureColumn(db, "repair_requests", "actor_id", "TEXT");
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_repair_requests_idempotency ON repair_requests(idempotency_key);
     CREATE INDEX IF NOT EXISTS idx_sessions_page_key ON sessions(page_key);
     CREATE INDEX IF NOT EXISTS idx_annotations_session_id ON annotations(session_id);
     CREATE INDEX IF NOT EXISTS idx_annotations_status ON annotations(status);

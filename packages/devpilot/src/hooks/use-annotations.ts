@@ -31,6 +31,9 @@ export interface UseAnnotationsOptions {
   annotationsRef: React.MutableRefObject<DevPilotAnnotation[]>;
   setIsOpen: (v: boolean) => void;
   setMode: (mode: DevPilotMode) => void;
+  onAnnotationAdd?: (annotation: DevPilotAnnotation) => void;
+  onAnnotationUpdate?: (annotation: DevPilotAnnotation) => void;
+  onAnnotationDelete?: (annotationId: string) => void;
   onNetworkError?: (message: string) => void;
 }
 
@@ -44,6 +47,9 @@ export function useAnnotations(options: UseAnnotationsOptions) {
     annotationsRef,
     setIsOpen,
     setMode,
+    onAnnotationAdd,
+    onAnnotationUpdate,
+    onAnnotationDelete,
     onNetworkError,
   } = options;
 
@@ -139,6 +145,7 @@ export function useAnnotations(options: UseAnnotationsOptions) {
       selectedText: annotation.selectedText,
       nearbyText: annotation.nearbyText,
       relatedElements: annotation.relatedElements,
+      context: annotation.context,
     });
     setDraft(annotation.comment);
     setEditingId(annotation.id);
@@ -170,6 +177,8 @@ export function useAnnotations(options: UseAnnotationsOptions) {
         setDraft("");
       }
 
+      onAnnotationDelete?.(annotationId);
+
       if (syncEndpoint) {
         deleteRemoteAnnotation(syncEndpoint, annotationId).catch((error) => {
           pendingDeletedAnnotationIdsRef.current.delete(annotationId);
@@ -182,17 +191,19 @@ export function useAnnotations(options: UseAnnotationsOptions) {
     }
 
     const nextUpdatedAt = Date.now();
+    let updatedAnnotation: DevPilotAnnotation | null = null;
     setAnnotations((current) =>
-      current.map((item) =>
-        item.id === annotationId
-          ? {
-              ...item,
-              status: nextStatus,
-              updatedAt: nextUpdatedAt,
-            }
-          : item,
-      ),
+      current.map((item) => {
+        if (item.id === annotationId) {
+          updatedAnnotation = { ...item, status: nextStatus, updatedAt: nextUpdatedAt };
+          return updatedAnnotation;
+        }
+        return item;
+      }),
     );
+    if (updatedAnnotation) {
+      onAnnotationUpdate?.(updatedAnnotation);
+    }
     setActiveAnnotationId(annotationId);
 
     if (syncEndpoint) {
@@ -213,6 +224,7 @@ export function useAnnotations(options: UseAnnotationsOptions) {
       (item) => item.id !== annotationId,
     );
     setAnnotations((current) => current.filter((item) => item.id !== annotationId));
+    onAnnotationDelete?.(annotationId);
 
     if (activeAnnotationId === annotationId) {
       setActiveAnnotationId(null);
@@ -250,6 +262,27 @@ export function useAnnotations(options: UseAnnotationsOptions) {
     setCopyState(didCopy ? "copied" : "failed");
   };
 
+  const handleCopyTaskPacket = async () => {
+    const { createDevPilotTaskPacket, formatDevPilotTaskPacketMarkdown } = await import("../task-packet");
+    const packet = createDevPilotTaskPacket({
+      type: "annotation",
+      taskTitle: `Fix ${openAnnotations.length} annotation${openAnnotations.length === 1 ? "" : "s"} on ${pathname}`,
+      description: `There are ${openAnnotations.length} open annotation(s) on this page that need attention.`,
+      desiredOutcome: "All open annotations are addressed with minimal safe code changes.",
+      annotations: openAnnotations,
+      pathname,
+      pageTitle: document.title || "Untitled Page",
+      url: window.location.href,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+    });
+    const text = formatDevPilotTaskPacketMarkdown(packet);
+    const didCopy = await copyTextToClipboard(text);
+    setCopyState(didCopy ? "copied" : "failed");
+  };
+
   const handleSave = () => {
     if (!selection || !draft.trim()) {
       return;
@@ -275,12 +308,14 @@ export function useAnnotations(options: UseAnnotationsOptions) {
         pageX: selection.pageX,
         pageY: selection.pageY,
         rect: selection.rect,
+        context: selection.context,
       };
 
       setAnnotations((current) =>
         current.map((item) => (item.id === editingId ? updatedAnnotation : item)),
       );
       setActiveAnnotationId(editingId);
+      onAnnotationUpdate?.(updatedAnnotation);
 
       if (syncEndpoint) {
         updateRemoteAnnotation(syncEndpoint, editingId, updatedAnnotation).catch((error) => {
@@ -307,9 +342,11 @@ export function useAnnotations(options: UseAnnotationsOptions) {
         pageX: selection.pageX,
         pageY: selection.pageY,
         rect: selection.rect,
+        context: selection.context,
       };
       setAnnotations((current) => sortAnnotationsByUpdatedAt([annotation, ...current]));
       setActiveAnnotationId(annotation.id);
+      onAnnotationAdd?.(annotation);
 
       if (syncEndpoint && currentSessionId) {
         syncRemoteAnnotation(syncEndpoint, currentSessionId, annotation).catch((error) => {
@@ -369,6 +406,7 @@ export function useAnnotations(options: UseAnnotationsOptions) {
     setAnnotationStatus,
     removeAnnotationRecord,
     handleCopyAnnotations,
+    handleCopyTaskPacket,
     handleSave,
     handleDelete,
     handleDeleteAnnotationRecord,

@@ -35,8 +35,11 @@ export type AnnotationRow = {
   page_x: number;
   page_y: number;
   rect_json: string;
+  context_json: string | null;
   resolved_at: number | null;
   resolved_by: "human" | "agent" | null;
+  deleted_at: number | null;
+  deleted_by: "human" | "agent" | null;
 };
 
 export type ReplyRow = {
@@ -79,4 +82,6 @@ export type RepairRequestRow = {
   completed_at: number | null;
   completed_by: "human" | "agent" | null;
   result_summary: string | null;
+  idempotency_key: string | null;
+  actor_id: string | null;
 };

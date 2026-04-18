@@ -21,6 +21,8 @@ export interface DevPilotRepairRequestRecord {
   completedAt?: number;
   completedBy?: "human" | "agent";
   resultSummary?: string;
+  idempotencyKey?: string;
+  actorId?: string;
 }
 
 export interface OpenRepairRequestsResponse {

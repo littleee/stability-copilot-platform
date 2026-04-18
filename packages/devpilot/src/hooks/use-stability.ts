@@ -49,6 +49,8 @@ export interface UseStabilityOptions {
   currentSessionIdRef: React.MutableRefObject<string | null>;
   annotationsRef: React.MutableRefObject<DevPilotAnnotation[]>;
   openAnnotations: DevPilotAnnotation[];
+  onStabilityObserved?: (item: DevPilotStabilityItem) => void;
+  onStabilityStatusChange?: (item: DevPilotStabilityItem) => void;
   onRepairRequest?: (request: DevPilotRepairRequest) => void | Promise<void>;
   onNetworkError?: (message: string) => void;
 }
@@ -62,6 +64,8 @@ export function useStability(options: UseStabilityOptions) {
     currentSessionIdRef,
     annotationsRef,
     openAnnotations,
+    onStabilityObserved,
+    onStabilityStatusChange,
     onRepairRequest,
     onNetworkError,
   } = options;
@@ -255,10 +259,22 @@ export function useStability(options: UseStabilityOptions) {
     },
     sessionId: currentSessionId || undefined,
     userAgent: typeof navigator === "undefined" ? undefined : navigator.userAgent,
+    platform: typeof navigator === "undefined" ? undefined : navigator.platform,
+    language: typeof navigator === "undefined" ? undefined : navigator.language,
+    screen: typeof window === "undefined" || !window.screen
+      ? undefined
+      : { width: window.screen.width, height: window.screen.height },
+    referrer: typeof document === "undefined" ? undefined : document.referrer,
     openAnnotationCount: openAnnotations.length,
     openAnnotationComments: openAnnotations.slice(0, 5).map((annotation) => {
       return `${annotation.elementName}: ${annotation.comment}`;
     }),
+    openAnnotationSummaries: openAnnotations.slice(0, 5).map((annotation) => ({
+      elementName: annotation.elementName,
+      elementPath: annotation.elementPath,
+      comment: annotation.comment,
+      kind: annotation.kind,
+    })),
   });
 
   const buildObservationContext = useCallback(() => {
@@ -277,10 +293,22 @@ export function useStability(options: UseStabilityOptions) {
       },
       sessionId: currentSessionIdRef.current || undefined,
       userAgent: typeof navigator === "undefined" ? undefined : navigator.userAgent,
+      platform: typeof navigator === "undefined" ? undefined : navigator.platform,
+      language: typeof navigator === "undefined" ? undefined : navigator.language,
+      screen: typeof window === "undefined" || !window.screen
+        ? undefined
+        : { width: window.screen.width, height: window.screen.height },
+      referrer: typeof document === "undefined" ? undefined : document.referrer,
       openAnnotationCount: currentOpenAnnotations.length,
       openAnnotationComments: currentOpenAnnotations.slice(0, 5).map((annotation) => {
         return `${annotation.elementName}: ${annotation.comment}`;
       }),
+      openAnnotationSummaries: currentOpenAnnotations.slice(0, 5).map((annotation) => ({
+        elementName: annotation.elementName,
+        elementPath: annotation.elementPath,
+        comment: annotation.comment,
+        kind: annotation.kind,
+      })),
     };
   }, [annotationsRef, currentSessionIdRef, pathname]);
 
@@ -334,6 +362,7 @@ export function useStability(options: UseStabilityOptions) {
       setStabilityItems((current) => {
         return sortStabilityItemsByUpdatedAt([nextItem, ...current]);
       });
+      onStabilityObserved?.(nextItem);
 
       const sessionId = currentSessionIdRef.current;
       if (syncEndpoint && sessionId) {
@@ -421,6 +450,7 @@ export function useStability(options: UseStabilityOptions) {
           severity: item.severity,
           prompt,
           requestedBy: "human",
+          idempotencyKey: `repair:${item.id}:${Date.now().toString(36)}`,
         });
         setRepairRequests((current) => mergeRemoteRepairRequests(current, [remoteRequest]));
         succeeded = true;
@@ -445,19 +475,21 @@ export function useStability(options: UseStabilityOptions) {
 
   const setStabilityItemStatus = (itemId: string, nextStatus: DevPilotStabilityStatus) => {
     const nextUpdatedAt = Date.now();
+    let updatedItem: DevPilotStabilityItem | null = null;
     setStabilityItems((current) =>
       sortStabilityItemsByUpdatedAt(
-        current.map((item) =>
-          item.id === itemId
-            ? {
-                ...item,
-                status: nextStatus,
-                updatedAt: nextUpdatedAt,
-              }
-            : item,
-        ),
+        current.map((item) => {
+          if (item.id === itemId) {
+            updatedItem = { ...item, status: nextStatus, updatedAt: nextUpdatedAt };
+            return updatedItem;
+          }
+          return item;
+        }),
       ),
     );
+    if (updatedItem) {
+      onStabilityStatusChange?.(updatedItem);
+    }
     setStabilityActiveId(itemId);
 
     if (syncEndpoint) {
@@ -507,6 +539,12 @@ export function useStability(options: UseStabilityOptions) {
       return sortStabilityItemsByUpdatedAt(next);
     });
     setStabilityActiveId(nextItem.id);
+
+    if (stabilityEditingId) {
+      onStabilityStatusChange?.(nextItem);
+    } else {
+      onStabilityObserved?.(nextItem);
+    }
 
     if (syncEndpoint && currentSessionId) {
       const syncPromise = stabilityEditingId

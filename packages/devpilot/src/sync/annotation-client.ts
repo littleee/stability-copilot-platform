@@ -1,5 +1,12 @@
 import type { DevPilotAnnotation } from "../types";
-import { readJsonResponse } from "./shared";
+import { getDevPilotClientId, readJsonResponse } from "./shared";
+
+function clientHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    "X-DevPilot-Client-Id": getDevPilotClientId(),
+  };
+}
 
 export async function syncRemoteAnnotation(
   endpoint: string,
@@ -8,9 +15,7 @@ export async function syncRemoteAnnotation(
 ): Promise<DevPilotAnnotation> {
   const response = await fetch(`${endpoint}/sessions/${sessionId}/annotations`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: clientHeaders(),
     body: JSON.stringify(annotation),
   });
 
@@ -24,9 +29,7 @@ export async function updateRemoteAnnotation(
 ): Promise<DevPilotAnnotation> {
   const response = await fetch(`${endpoint}/annotations/${annotationId}`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: clientHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -39,6 +42,9 @@ export async function deleteRemoteAnnotation(
 ): Promise<void> {
   const response = await fetch(`${endpoint}/annotations/${annotationId}`, {
     method: "DELETE",
+    headers: {
+      "X-DevPilot-Client-Id": getDevPilotClientId(),
+    },
   });
 
   await readJsonResponse<{ deleted: boolean }>(response, "delete annotation");

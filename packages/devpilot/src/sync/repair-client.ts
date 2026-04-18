@@ -1,5 +1,12 @@
 import type { DevPilotRepairRequestRecord } from "../types";
-import { readJsonResponse } from "./shared";
+import { getDevPilotClientId, readJsonResponse } from "./shared";
+
+function clientHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    "X-DevPilot-Client-Id": getDevPilotClientId(),
+  };
+}
 
 export async function createRemoteRepairRequest(
   endpoint: string,
@@ -13,9 +20,7 @@ export async function createRemoteRepairRequest(
 ): Promise<DevPilotRepairRequestRecord> {
   const response = await fetch(`${endpoint}/sessions/${sessionId}/repair-requests`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: clientHeaders(),
     body: JSON.stringify(request),
   });
 

@@ -214,6 +214,22 @@ export function formatDevPilotStabilityExportMarkdown(
       lines.push(`**Session ID:** ${item.context.sessionId}`);
     }
 
+    if (item.context.platform) {
+      lines.push(`**Platform:** ${item.context.platform}`);
+    }
+
+    if (item.context.language) {
+      lines.push(`**Language:** ${item.context.language}`);
+    }
+
+    if (item.context.screen) {
+      lines.push(`**Screen:** ${item.context.screen.width}x${item.context.screen.height}`);
+    }
+
+    if (item.context.referrer) {
+      lines.push(`**Referrer:** ${item.context.referrer}`);
+    }
+
     lines.push(`**Open Annotations At Capture:** ${item.context.openAnnotationCount}`);
 
     if (item.context.openAnnotationComments.length > 0) {
@@ -222,6 +238,12 @@ export function formatDevPilotStabilityExportMarkdown(
           .map((entry) => normalizeInlineText(entry))
           .join(" | ")}`,
       );
+    }
+
+    if (item.context.openAnnotationSummaries && item.context.openAnnotationSummaries.length > 0) {
+      item.context.openAnnotationSummaries.forEach((summary, idx) => {
+        lines.push(`  ${idx + 1}. [${summary.kind || "annotation"}] \`${normalizeInlineText(summary.elementPath)}\`: ${normalizeInlineText(summary.comment)}`);
+      });
     }
 
     lines.push("");
@@ -316,10 +338,31 @@ export function formatDevPilotStabilityRepairMarkdown(
 
   lines.push(`**Captured Page:** ${normalizeInlineText(issue.context.title)} (${issue.context.pathname})`);
   lines.push(`**Captured URL:** ${issue.context.url}`);
+  lines.push(`**Viewport:** ${issue.context.viewport.width}x${issue.context.viewport.height}`);
+
+  if (issue.context.platform) {
+    lines.push(`**Platform:** ${issue.context.platform}`);
+  }
+
+  if (issue.context.language) {
+    lines.push(`**Language:** ${issue.context.language}`);
+  }
+
+  if (issue.context.screen) {
+    lines.push(`**Screen:** ${issue.context.screen.width}x${issue.context.screen.height}`);
+  }
+
   lines.push(`**Open Annotations At Capture:** ${issue.context.openAnnotationCount}`);
 
   if (payload.relatedAnnotations.length > 0) {
     lines.push(`**Related Annotation Notes:** ${payload.relatedAnnotations.join(" | ")}`);
+  }
+
+  if (issue.context.openAnnotationSummaries && issue.context.openAnnotationSummaries.length > 0) {
+    lines.push("**Related Annotations:**");
+    issue.context.openAnnotationSummaries.forEach((summary, idx) => {
+      lines.push(`  ${idx + 1}. [${summary.kind || "annotation"}] \`${normalizeInlineText(summary.elementPath)}\`: ${normalizeInlineText(summary.comment)}`);
+    });
   }
 
   lines.push("");

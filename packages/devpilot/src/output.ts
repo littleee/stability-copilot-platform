@@ -42,6 +42,8 @@ export interface DevPilotExportAnnotation {
   rect: DevPilotRect;
   createdAt: number;
   updatedAt: number;
+  context?: import("./types").DevPilotElementContext;
+  sourceHits?: string[];
 }
 
 export interface DevPilotExportPayload {
@@ -149,6 +151,46 @@ function getAnnotationHeading(annotation: DevPilotExportAnnotation): string {
   return normalizeInlineText(annotation.elementName);
 }
 
+function computeSourceHits(annotation: DevPilotExportAnnotation): string[] {
+  const hits = new Set<string>();
+  const ctx = annotation.context;
+
+  if (ctx?.componentHints) {
+    ctx.componentHints.forEach((name) => {
+      hits.add(`component:${name}`);
+    });
+  }
+
+  if (ctx?.sourceHints) {
+    ctx.sourceHints.forEach((file) => {
+      hits.add(`file:${file}`);
+    });
+  }
+
+  if (ctx?.dataAttributes) {
+    Object.entries(ctx.dataAttributes).forEach(([key, value]) => {
+      if (key.includes("source") || key.includes("file")) {
+        hits.add(`file:${value}`);
+      }
+      if (key.includes("component")) {
+        hits.add(`component:${value}`);
+      }
+    });
+  }
+
+  // Derive candidate file paths from component names
+  if (ctx?.componentHints) {
+    ctx.componentHints.forEach((name) => {
+      hits.add(`candidate:src/components/${name}.tsx`);
+      hits.add(`candidate:src/${name}.tsx`);
+      hits.add(`candidate:app/components/${name}.tsx`);
+      hits.add(`candidate:pages/${name}.tsx`);
+    });
+  }
+
+  return Array.from(hits).slice(0, 10);
+}
+
 export function createDevPilotExportPayload(
   options: DevPilotExportPayloadOptions,
 ): DevPilotExportPayload {
@@ -179,24 +221,29 @@ export function createDevPilotExportPayload(
       viewport: resolvedViewport,
     },
     summary: createExportSummary(annotations),
-    annotations: annotations.map((annotation, index) => ({
-      id: annotation.id,
-      index: index + 1,
-      kind: getAnnotationKind(annotation),
-      status: annotation.status,
-      comment: annotation.comment,
-      elementName: annotation.elementName,
-      elementPath: annotation.elementPath,
-      selectedText: annotation.selectedText,
-      nearbyText: annotation.nearbyText,
-      relatedElements: annotation.relatedElements,
-      matchCount: annotation.matchCount,
-      pageX: annotation.pageX,
-      pageY: annotation.pageY,
-      rect: annotation.rect,
-      createdAt: annotation.createdAt,
-      updatedAt: annotation.updatedAt,
-    })),
+    annotations: annotations.map((annotation, index) => {
+      const exportAnnotation: DevPilotExportAnnotation = {
+        id: annotation.id,
+        index: index + 1,
+        kind: getAnnotationKind(annotation),
+        status: annotation.status,
+        comment: annotation.comment,
+        elementName: annotation.elementName,
+        elementPath: annotation.elementPath,
+        selectedText: annotation.selectedText,
+        nearbyText: annotation.nearbyText,
+        relatedElements: annotation.relatedElements,
+        matchCount: annotation.matchCount,
+        pageX: annotation.pageX,
+        pageY: annotation.pageY,
+        rect: annotation.rect,
+        createdAt: annotation.createdAt,
+        updatedAt: annotation.updatedAt,
+        context: annotation.context,
+      };
+      exportAnnotation.sourceHits = computeSourceHits(exportAnnotation);
+      return exportAnnotation;
+    }),
   };
 }
 
@@ -248,6 +295,41 @@ export function formatDevPilotExportMarkdown(
           .map((item) => normalizeInlineText(item))
           .join(" | ")}`,
       );
+    }
+
+    if (annotation.context) {
+      const ctx = annotation.context;
+      if (ctx.selectorCandidates && ctx.selectorCandidates.length > 0) {
+        lines.push(
+          `**Selectors:** \`${ctx.selectorCandidates.slice(0, 4).join("` `")}\``
+        );
+      }
+      if (ctx.cssClasses && ctx.cssClasses.length > 0) {
+        lines.push(
+          `**Classes:** \`${ctx.cssClasses.slice(0, 6).join("` `")}\``
+        );
+      }
+      if (ctx.componentHints && ctx.componentHints.length > 0) {
+        lines.push(
+          `**Components:** ${ctx.componentHints.join(", ")}`
+        );
+      }
+      if (ctx.nearbyElements && ctx.nearbyElements.length > 0) {
+        lines.push(
+          `**Nearby:** ${ctx.nearbyElements.map((item) => normalizeInlineText(item)).join(" | ")}`
+        );
+      }
+      if (ctx.computedStyleSnapshot && Object.keys(ctx.computedStyleSnapshot).length > 0) {
+        const styleEntries = Object.entries(ctx.computedStyleSnapshot).slice(0, 6);
+        lines.push(
+          `**Styles:** ${styleEntries.map(([k, v]) => `${k}: ${v}`).join("; ")}`
+        );
+      }
+    }
+
+    if (annotation.sourceHits && annotation.sourceHits.length > 0) {
+      lines.push(`**Source Hits:**`);
+      annotation.sourceHits.forEach((hit) => lines.push(`  - ${hit}`));
     }
 
     lines.push(`**Feedback:** ${annotation.comment.trim()}`);

@@ -1,5 +1,12 @@
 import type { DevPilotStabilityItem } from "../types";
-import { readJsonResponse } from "./shared";
+import { getDevPilotClientId, readJsonResponse } from "./shared";
+
+function clientHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    "X-DevPilot-Client-Id": getDevPilotClientId(),
+  };
+}
 
 export async function syncRemoteStabilityItem(
   endpoint: string,
@@ -8,9 +15,7 @@ export async function syncRemoteStabilityItem(
 ): Promise<DevPilotStabilityItem> {
   const response = await fetch(`${endpoint}/sessions/${sessionId}/stability`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: clientHeaders(),
     body: JSON.stringify(item),
   });
 
@@ -27,9 +32,7 @@ export async function updateRemoteStabilityItem(
 ): Promise<DevPilotStabilityItem> {
   const response = await fetch(`${endpoint}/stability/${stabilityItemId}`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: clientHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -45,6 +48,9 @@ export async function deleteRemoteStabilityItem(
 ): Promise<void> {
   const response = await fetch(`${endpoint}/stability/${stabilityItemId}`, {
     method: "DELETE",
+    headers: {
+      "X-DevPilot-Client-Id": getDevPilotClientId(),
+    },
   });
 
   await readJsonResponse<{ deleted: boolean }>(

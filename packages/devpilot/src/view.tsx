@@ -46,6 +46,13 @@ function DevPilotApp({
   defaultOpen = false,
   endpoint,
   features,
+  onAnnotationAdd,
+  onAnnotationUpdate,
+  onAnnotationDelete,
+  onStabilityObserved,
+  onStabilityStatusChange,
+  onSessionCreated,
+  onConnectionStateChange,
   onRepairRequest,
 }: DevPilotMountOptions) {
   const pathname = window.location.pathname || "/";
@@ -87,6 +94,9 @@ function DevPilotApp({
     annotationsRef,
     setIsOpen,
     setMode,
+    onAnnotationAdd,
+    onAnnotationUpdate,
+    onAnnotationDelete,
     onNetworkError: setNetworkError,
   });
 
@@ -98,6 +108,8 @@ function DevPilotApp({
     currentSessionIdRef,
     annotationsRef,
     openAnnotations: annotationsHook.openAnnotations,
+    onStabilityObserved,
+    onStabilityStatusChange,
     onRepairRequest,
     onNetworkError: setNetworkError,
   });
@@ -114,6 +126,8 @@ function DevPilotApp({
     setRepairRequests: stabilityHook.setRepairRequests,
     annotationsRef,
     currentSessionIdRef,
+    onSessionCreated,
+    onConnectionStateChange,
   });
 
   const areaSelection = useAreaSelection({

@@ -13,6 +13,16 @@ export interface DevPilotRect {
   height: number;
 }
 
+export interface DevPilotElementContext {
+  cssClasses?: string[];
+  selectorCandidates?: string[];
+  nearbyElements?: string[];
+  computedStyleSnapshot?: Record<string, string>;
+  componentHints?: string[];
+  sourceHints?: string[];
+  dataAttributes?: Record<string, string>;
+}
+
 export interface DevPilotAnnotationReply {
   id: string;
   annotationId: string;
@@ -39,8 +49,11 @@ export interface DevPilotAnnotationRecord {
   pageX: number;
   pageY: number;
   rect: DevPilotRect;
+  context?: DevPilotElementContext;
   resolvedAt?: number;
   resolvedBy?: "human" | "agent";
+  deletedAt?: number;
+  deletedBy?: "human" | "agent";
   replies?: DevPilotAnnotationReply[];
 }
 

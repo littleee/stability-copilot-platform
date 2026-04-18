@@ -14,6 +14,16 @@ export interface DevPilotRect {
   height: number;
 }
 
+export interface DevPilotElementContext {
+  cssClasses?: string[];
+  selectorCandidates?: string[];
+  nearbyElements?: string[];
+  computedStyleSnapshot?: Record<string, string>;
+  componentHints?: string[];
+  sourceHints?: string[];
+  dataAttributes?: Record<string, string>;
+}
+
 export interface DevPilotSelection {
   kind: DevPilotSelectionKind;
   elementName: string;
@@ -25,6 +35,7 @@ export interface DevPilotSelection {
   selectedText?: string;
   nearbyText?: string;
   relatedElements?: string[];
+  context?: DevPilotElementContext;
 }
 
 export interface DevPilotAnnotation {
@@ -44,6 +55,7 @@ export interface DevPilotAnnotation {
   pageX: number;
   pageY: number;
   rect: DevPilotRect;
+  context?: DevPilotElementContext;
 }
 
 export interface DevPilotFeatureFlags {
@@ -66,10 +78,23 @@ export function resolveDevPilotFeatures(
   };
 }
 
+export interface DevPilotConnectionState {
+  endpoint?: string;
+  status: "disabled" | "connecting" | "connected" | "reconnecting" | "error";
+  sessionId?: string | null;
+}
+
 export interface DevPilotMountOptions {
   endpoint?: string;
   defaultOpen?: boolean;
   features?: DevPilotFeatureFlags;
+  onAnnotationAdd?: (annotation: DevPilotAnnotation) => void;
+  onAnnotationUpdate?: (annotation: DevPilotAnnotation) => void;
+  onAnnotationDelete?: (annotationId: string) => void;
+  onStabilityObserved?: (item: import("./stability").DevPilotStabilityItem) => void;
+  onStabilityStatusChange?: (item: import("./stability").DevPilotStabilityItem) => void;
+  onSessionCreated?: (sessionId: string) => void;
+  onConnectionStateChange?: (state: DevPilotConnectionState) => void;
   onRepairRequest?: (
     request: DevPilotRepairRequest,
   ) => void | Promise<void>;

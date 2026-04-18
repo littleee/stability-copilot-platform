@@ -70,6 +70,11 @@ function normalizeStabilityItem(
       openAnnotationComments: Array.isArray(item.context?.openAnnotationComments)
         ? item.context.openAnnotationComments.filter((entry) => typeof entry === "string")
         : [],
+      openAnnotationSummaries: Array.isArray(item.context?.openAnnotationSummaries)
+        ? item.context.openAnnotationSummaries.filter(
+            (entry) => typeof entry === "object" && entry !== null,
+          )
+        : [],
     },
   };
 }

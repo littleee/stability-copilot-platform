@@ -22,28 +22,28 @@ export function createAnnotationRepository(
     getAnnotationById: db.prepare("SELECT * FROM annotations WHERE id = ?"),
     getAnnotationsBySession: db.prepare(`
       SELECT * FROM annotations
-      WHERE session_id = ?
+      WHERE session_id = ? AND deleted_at IS NULL
       ORDER BY updated_at DESC, created_at DESC
     `),
     getPendingBySession: db.prepare(`
       SELECT * FROM annotations
-      WHERE session_id = ? AND status IN ('pending', 'acknowledged')
+      WHERE session_id = ? AND status IN ('pending', 'acknowledged') AND deleted_at IS NULL
       ORDER BY updated_at DESC, created_at DESC
     `),
     getPendingAll: db.prepare(`
       SELECT * FROM annotations
-      WHERE status IN ('pending', 'acknowledged')
+      WHERE status IN ('pending', 'acknowledged') AND deleted_at IS NULL
       ORDER BY updated_at DESC, created_at DESC
     `),
     insertAnnotation: db.prepare(`
       INSERT INTO annotations (
         id, session_id, pathname, created_at, updated_at, kind, status, comment,
         element_name, element_path, match_count, selected_text, nearby_text,
-        related_elements, page_x, page_y, rect_json, resolved_at, resolved_by
+        related_elements, page_x, page_y, rect_json, context_json, resolved_at, resolved_by
       ) VALUES (
         @id, @sessionId, @pathname, @createdAt, @updatedAt, @kind, @status, @comment,
         @elementName, @elementPath, @matchCount, @selectedText, @nearbyText,
-        @relatedElements, @pageX, @pageY, @rectJson, @resolvedAt, @resolvedBy
+        @relatedElements, @pageX, @pageY, @rectJson, @contextJson, @resolvedAt, @resolvedBy
       )
     `),
     updateAnnotation: db.prepare(`
@@ -62,6 +62,7 @@ export function createAnnotationRepository(
         page_x = @pageX,
         page_y = @pageY,
         rect_json = @rectJson,
+        context_json = @contextJson,
         resolved_at = @resolvedAt,
         resolved_by = @resolvedBy
       WHERE id = @id
@@ -191,7 +192,23 @@ export function createAnnotationRepository(
     });
   }
 
-  function deleteAnnotation(id: string): DevPilotAnnotationRecord | null {
+  function deleteAnnotation(
+    id: string,
+    deletedBy: "human" | "agent" = "human",
+  ): DevPilotAnnotationRecord | null {
+    const existing = getAnnotationById(id);
+    if (!existing) {
+      return null;
+    }
+
+    db.prepare(`
+      UPDATE annotations SET deleted_at = ?, deleted_by = ? WHERE id = ?
+    `).run(Date.now(), deletedBy, id);
+    deps.touchSession(existing.sessionId);
+    return existing;
+  }
+
+  function hardDeleteAnnotation(id: string): DevPilotAnnotationRecord | null {
     const existing = getAnnotationById(id);
     if (!existing) {
       return null;
@@ -228,6 +245,7 @@ export function createAnnotationRepository(
     addAnnotation,
     addReply,
     deleteAnnotation,
+    hardDeleteAnnotation,
     getAllPendingAnnotations,
     getAnnotationById,
     getPendingAnnotations,

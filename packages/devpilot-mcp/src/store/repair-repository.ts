@@ -18,6 +18,11 @@ export function createRepairRepository(
 ) {
   const statements = {
     getRepairRequestById: db.prepare("SELECT * FROM repair_requests WHERE id = ?"),
+    getRepairRequestByIdempotency: db.prepare(`
+      SELECT * FROM repair_requests
+      WHERE idempotency_key = ? AND status IN ('requested', 'accepted')
+      ORDER BY created_at DESC LIMIT 1
+    `),
     getRepairRequestsBySession: db.prepare(`
       SELECT * FROM repair_requests
       WHERE session_id = ?
@@ -36,10 +41,12 @@ export function createRepairRepository(
     insertRepairRequest: db.prepare(`
       INSERT INTO repair_requests (
         id, session_id, stability_item_id, pathname, created_at, updated_at, status,
-        title, severity, prompt, requested_by, completed_at, completed_by, result_summary
+        title, severity, prompt, requested_by, completed_at, completed_by, result_summary,
+        idempotency_key, actor_id
       ) VALUES (
         @id, @sessionId, @stabilityItemId, @pathname, @createdAt, @updatedAt, @status,
-        @title, @severity, @prompt, @requestedBy, @completedAt, @completedBy, @resultSummary
+        @title, @severity, @prompt, @requestedBy, @completedAt, @completedBy, @resultSummary,
+        @idempotencyKey, @actorId
       )
     `),
     updateRepairRequest: db.prepare(`
@@ -54,7 +61,9 @@ export function createRepairRepository(
         requested_by = @requestedBy,
         completed_at = @completedAt,
         completed_by = @completedBy,
-        result_summary = @resultSummary
+        result_summary = @resultSummary,
+        idempotency_key = @idempotencyKey,
+        actor_id = @actorId
       WHERE id = @id
     `),
   };
@@ -119,6 +128,15 @@ export function createRepairRepository(
     return getRepairRequestById(id);
   }
 
+  function getExistingByIdempotency(
+    idempotencyKey: string,
+  ): DevPilotRepairRequestRecord | null {
+    const row = statements.getRepairRequestByIdempotency.get(
+      idempotencyKey,
+    ) as RepairRequestRow | undefined;
+    return row ? rowToRepairRequest(row) : null;
+  }
+
   function addRepairRequest(
     sessionId: string,
     input: Omit<DevPilotRepairRequestRecord, "sessionId">,
@@ -126,6 +144,14 @@ export function createRepairRepository(
     const session = deps.getSessionById(sessionId);
     if (!session) {
       return null;
+    }
+
+    // Idempotency: if same idempotency key exists and is active, return it
+    if (input.idempotencyKey) {
+      const existing = getExistingByIdempotency(input.idempotencyKey);
+      if (existing) {
+        return existing;
+      }
     }
 
     const now = Date.now();
@@ -153,9 +179,11 @@ export function createRepairRepository(
   return {
     addRepairRequest,
     getAllOpenRepairRequests,
+    getExistingByIdempotency,
     getOpenSessionRepairRequests,
     getRepairRequestById,
     listSessionRepairRequests,
     updateRepairRequest,
   };
 }
+

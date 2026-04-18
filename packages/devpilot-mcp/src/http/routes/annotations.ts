@@ -69,12 +69,20 @@ export const handleAnnotationRoutes: HttpRouteHandler = async ({
   }
 
   if (annotationMatch && req.method === "DELETE") {
-    const deleted = store.deleteAnnotation(annotationMatch[1]);
+    const url = new URL(req.url || "/", `http://${req.headers.host}`);
+    const hard = url.searchParams.get("hard") === "true";
+    const actor = (req.headers["x-devpilot-actor"] as string) || "human";
+    let deleted;
+    if (hard) {
+      deleted = store.hardDeleteAnnotation(annotationMatch[1]);
+    } else {
+      deleted = store.deleteAnnotation(annotationMatch[1], actor as "human" | "agent");
+    }
     if (!deleted) {
       sendError(res, 404, "Annotation not found");
       return true;
     }
-    events.emitEvent("annotation.deleted", deleted.sessionId, deleted);
+    events.emitEvent("annotation.deleted", deleted.sessionId, { ...deleted, deletedBy: actor });
     sendJson(res, 200, { deleted: true, annotationId: annotationMatch[1] });
     return true;
   }

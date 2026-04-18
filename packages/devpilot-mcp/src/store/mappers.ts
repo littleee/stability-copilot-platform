@@ -1,6 +1,7 @@
 import type {
   DevPilotAnnotationRecord,
   DevPilotAnnotationReply,
+  DevPilotElementContext,
   DevPilotRepairRequestRecord,
   DevPilotSessionRecord,
   DevPilotStabilityItemRecord,
@@ -81,8 +82,14 @@ export function rowToAnnotation(
       width: 0,
       height: 0,
     }),
+    context: parseJson<DevPilotElementContext | undefined>(
+      row.context_json,
+      undefined,
+    ),
     resolvedAt: row.resolved_at ?? undefined,
     resolvedBy: row.resolved_by ?? undefined,
+    deletedAt: row.deleted_at ?? undefined,
+    deletedBy: row.deleted_by ?? undefined,
     replies,
   };
 }
@@ -111,8 +118,11 @@ export function serializeAnnotation(
     pageX: annotation.pageX,
     pageY: annotation.pageY,
     rectJson: JSON.stringify(annotation.rect),
+    contextJson: annotation.context ? JSON.stringify(annotation.context) : null,
     resolvedAt: annotation.resolvedAt ?? null,
     resolvedBy: annotation.resolvedBy ?? null,
+    deletedAt: annotation.deletedAt ?? null,
+    deletedBy: annotation.deletedBy ?? null,
   };
 }
 
@@ -184,6 +194,8 @@ export function rowToRepairRequest(
     completedAt: row.completed_at ?? undefined,
     completedBy: row.completed_by ?? undefined,
     resultSummary: row.result_summary ?? undefined,
+    idempotencyKey: row.idempotency_key ?? undefined,
+    actorId: row.actor_id ?? undefined,
   };
 }
 
@@ -205,5 +217,7 @@ export function serializeRepairRequest(
     completedAt: request.completedAt ?? null,
     completedBy: request.completedBy ?? null,
     resultSummary: request.resultSummary ?? null,
+    idempotencyKey: request.idempotencyKey ?? null,
+    actorId: request.actorId ?? null,
   };
 }

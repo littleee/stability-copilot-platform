@@ -49,6 +49,7 @@ export function createStore(dbPath = DEFAULT_DB_PATH) {
     updateAnnotation: annotations.updateAnnotation,
     updateAnnotationStatus: annotations.updateAnnotationStatus,
     deleteAnnotation: annotations.deleteAnnotation,
+    hardDeleteAnnotation: annotations.hardDeleteAnnotation,
     addReply: annotations.addReply,
     getAnnotation(id: string) {
       return annotations.getAnnotationById(id);
@@ -67,6 +68,7 @@ export function createStore(dbPath = DEFAULT_DB_PATH) {
     getAllOpenStabilityItems: stability.getAllOpenStabilityItems,
     addRepairRequest: repairs.addRepairRequest,
     updateRepairRequest: repairs.updateRepairRequest,
+    getRepairRequestByIdempotency: repairs.getExistingByIdempotency,
     getRepairRequest(id: string) {
       return repairs.getRepairRequestById(id);
     },

@@ -40,8 +40,23 @@ test("store keeps sessions, annotations, stability items, and repair requests li
       pageX: 12,
       pageY: 24,
       rect: { left: 0, top: 0, width: 10, height: 10 },
+      context: {
+        cssClasses: ["primary", "cta"],
+        selectorCandidates: ["button.primary", "[data-testid=submit]"],
+        nearbyElements: ["form checkout", "label Confirm"],
+        computedStyleSnapshot: {
+          display: "inline-flex",
+          color: "rgb(255, 255, 255)",
+        },
+        componentHints: ["CheckoutButton"],
+        sourceHints: ["src/components/CheckoutButton.tsx"],
+        dataAttributes: {
+          "data-testid": "submit",
+        },
+      },
     });
     assert.ok(annotation);
+    assert.deepEqual(annotation.context?.componentHints, ["CheckoutButton"]);
 
     const replied = store.addReply("ann-1", "agent", "Looking into it");
     assert.ok(replied);
@@ -87,4 +102,7 @@ test("store keeps sessions, annotations, stability items, and repair requests li
     assert.equal(fullSession.stabilityItems.length, 1);
     assert.equal(fullSession.repairRequests.length, 1);
     assert.equal(fullSession.annotations[0].replies.length, 1);
+    assert.deepEqual(fullSession.annotations[0].context?.sourceHints, [
+      "src/components/CheckoutButton.tsx",
+    ]);
   }));

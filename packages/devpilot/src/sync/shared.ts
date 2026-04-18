@@ -12,3 +12,22 @@ export async function readJsonResponse<T>(
 ): Promise<T> {
   return readJson<T>(response, action);
 }
+
+const CLIENT_ID_KEY = "devpilot.clientId";
+
+export function getDevPilotClientId(): string {
+  if (typeof window === "undefined") {
+    return "server";
+  }
+  try {
+    const existing = window.localStorage.getItem(CLIENT_ID_KEY);
+    if (existing) {
+      return existing;
+    }
+    const id = `cli_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    window.localStorage.setItem(CLIENT_ID_KEY, id);
+    return id;
+  } catch {
+    return `cli_${Date.now().toString(36)}`;
+  }
+}

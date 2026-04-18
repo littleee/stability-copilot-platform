@@ -4,7 +4,9 @@
   "description": "A page-native annotation toolbar for collecting UI feedback and exporting it for AI-assisted code changes.",
   "license": "MIT",
   "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/littleee/stability-copilot-platform.git",
@@ -24,7 +26,9 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./dist/index.mjs"
     }
   },
   "publishConfig": {
@@ -35,7 +39,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json",
+    "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json && node ./scripts/build-esm-wrapper.mjs",
     "check": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist"
   },

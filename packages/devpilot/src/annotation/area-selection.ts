@@ -238,9 +238,185 @@ export function isWithinDevPilotEvent(event: Event): boolean {
   return isWithinDevPilotTarget(event.target);
 }
 
+function getComputedStyleSnapshot(element: HTMLElement): Record<string, string> {
+  if (typeof window === "undefined" || !window.getComputedStyle) {
+    return {};
+  }
+  const computed = window.getComputedStyle(element);
+  const keys: string[] = [
+    "display",
+    "position",
+    "color",
+    "backgroundColor",
+    "fontSize",
+    "fontWeight",
+    "width",
+    "height",
+    "margin",
+    "padding",
+    "borderRadius",
+    "zIndex",
+  ];
+  const snapshot: Record<string, string> = {};
+  keys.forEach((key: string) => {
+    const value = computed.getPropertyValue(key);
+    if (value && value !== "none" && value !== "auto" && value !== "normal") {
+      snapshot[key] = value;
+    }
+  });
+  return snapshot;
+}
+
+function buildSelectorCandidates(element: HTMLElement): string[] {
+  const candidates: string[] = [];
+  const tagName = element.tagName.toLowerCase();
+
+  if (element.id) {
+    candidates.push(`#${element.id}`);
+  }
+
+  const testId = element.getAttribute("data-testid");
+  if (testId) {
+    candidates.push(`[data-testid="${testId}"]`);
+  }
+
+  const qaId = element.getAttribute("data-qa");
+  if (qaId) {
+    candidates.push(`[data-qa="${qaId}"]`);
+  }
+
+  if (element.classList.length > 0) {
+    const classes = Array.from(element.classList).filter(
+      (c) => !/^(ant-|el-|mui-|chakra-|tw-|bp3-|is-|has-|active|selected|disabled|open)/.test(c),
+    );
+    if (classes.length > 0) {
+      candidates.push(`${tagName}.${classes.slice(0, 3).join(".")}`);
+    }
+  }
+
+  const role = element.getAttribute("role");
+  if (role) {
+    candidates.push(`${tagName}[role="${role}"]`);
+  }
+
+  const name = element.getAttribute("name");
+  if (name) {
+    candidates.push(`${tagName}[name="${name}"]`);
+  }
+
+  candidates.push(tagName);
+  return candidates.slice(0, 6);
+}
+
+function getNearbyElements(element: HTMLElement, maxNeighbors = 4): string[] {
+  const neighbors: string[] = [];
+  const parent = element.parentElement;
+  if (parent) {
+    const siblings = Array.from(parent.children).filter((child) => child !== element);
+    siblings.slice(0, maxNeighbors).forEach((sibling) => {
+      if (sibling instanceof HTMLElement) {
+        const tag = sibling.tagName.toLowerCase();
+        const text = (sibling.textContent || "").trim().replace(/\s+/g, " ").slice(0, 40);
+        const role = sibling.getAttribute("role");
+        neighbors.push(`${tag}${role ? `(${role})` : ""}${text ? `: ${text}` : ""}`.trim());
+      }
+    });
+  }
+  return neighbors;
+}
+
+function getDataAttributes(element: HTMLElement): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  const attributes = element.attributes;
+  for (let i = 0; i < attributes.length; i++) {
+    const attr = attributes[i];
+    if (attr.name.startsWith("data-")) {
+      attrs[attr.name] = attr.value;
+    }
+  }
+  return attrs;
+}
+
+function getComponentHints(element: HTMLElement): string[] {
+  const hints: string[] = [];
+  const componentName =
+    element.getAttribute("data-component") ||
+    element.getAttribute("data-component-name") ||
+    element.getAttribute("data-testid");
+  if (componentName) {
+    hints.push(componentName);
+  }
+
+  // Walk up to find React __reactFiber$ keys (lightweight detection)
+  let current: HTMLElement | null = element;
+  let depth = 0;
+  while (current && depth < 6) {
+    const keys: string[] = Object.keys(current);
+    const fiberKey = keys.find((k: string) => k.startsWith("__reactFiber"));
+    if (fiberKey) {
+      // @ts-expect-error accessing internal React property
+      const fiber = current[fiberKey];
+      if (fiber?.elementType?.name) {
+        hints.push(fiber.elementType.name);
+      }
+      if (fiber?.elementType?.displayName) {
+        hints.push(fiber.elementType.displayName);
+      }
+      // Also try to get the parent component name
+      if (fiber?.return?.elementType?.name) {
+        hints.push(fiber.return.elementType.name);
+      }
+      break;
+    }
+    current = current.parentElement;
+    depth += 1;
+  }
+
+  return Array.from(new Set(hints));
+}
+
+function getSourceHints(element: HTMLElement): string[] {
+  const hints: string[] = [];
+
+  // Check for source map hints via data attributes (common in dev builds)
+  const sourceFile =
+    element.getAttribute("data-source") ||
+    element.getAttribute("data-source-file") ||
+    element.getAttribute("data-file");
+  if (sourceFile) {
+    hints.push(sourceFile);
+  }
+
+  // Try to extract source map info from React fiber
+  let current: HTMLElement | null = element;
+  let depth = 0;
+  while (current && depth < 4) {
+    const keys: string[] = Object.keys(current);
+    const fiberKey = keys.find((k: string) => k.startsWith("__reactFiber"));
+    if (fiberKey) {
+      // @ts-expect-error accessing internal React property
+      const fiber = current[fiberKey];
+      // React DevTools may inject _debugSource
+      if (fiber?._debugSource?.fileName) {
+        hints.push(fiber._debugSource.fileName);
+      }
+      break;
+    }
+    current = current.parentElement;
+    depth += 1;
+  }
+
+  return hints;
+}
+
 export function describeElement(
   element: HTMLElement,
-): { elementName: string; elementPath: string; nearbyText?: string } {
+): {
+  elementName: string;
+  elementPath: string;
+  nearbyText?: string;
+  context?: import("../types").DevPilotElementContext;
+} {
   const tagName = element.tagName.toLowerCase();
   const role = element.getAttribute("role");
   const text = (element.textContent || "").trim().replace(/\s+/g, " ");
@@ -267,6 +443,15 @@ export function describeElement(
     elementName: label || tagName,
     elementPath: path.join(" > "),
     nearbyText: text || undefined,
+    context: {
+      cssClasses: Array.from(element.classList),
+      selectorCandidates: buildSelectorCandidates(element),
+      nearbyElements: getNearbyElements(element),
+      computedStyleSnapshot: getComputedStyleSnapshot(element),
+      componentHints: getComponentHints(element),
+      sourceHints: getSourceHints(element),
+      dataAttributes: getDataAttributes(element),
+    },
   };
 }
 
@@ -608,6 +793,7 @@ export function describeCommittedAreaSelection(rect: DevPilotRect): {
   relatedElements?: string[];
   matchRects: DevPilotRect[];
   matchCount: number;
+  context?: import("../types").DevPilotElementContext;
 } {
   const matches = collectAreaMatches(rect);
   const snappedRect = getUnionRect(matches.map((item) => item.rect)) || rect;
@@ -645,6 +831,45 @@ export function describeCommittedAreaSelection(rect: DevPilotRect): {
     .slice(0, 3)
     .join(" · ");
 
+  // Merge context from all matched elements
+  const allCssClasses = new Set<string>();
+  const allSelectors = new Set<string>();
+  const allNearby = new Set<string>();
+  const allComponents = new Set<string>();
+  const allSources = new Set<string>();
+  const styleSnapshot: Record<string, string> = {};
+  const dataAttributes: Record<string, string> = {};
+
+  matches.forEach(({ element }) => {
+    const desc = describeElement(element);
+    if (desc.context) {
+      desc.context.cssClasses?.forEach((c) => allCssClasses.add(c));
+      desc.context.selectorCandidates?.forEach((s) => allSelectors.add(s));
+      desc.context.nearbyElements?.forEach((n) => allNearby.add(n));
+      desc.context.componentHints?.forEach((h) => allComponents.add(h));
+      desc.context.sourceHints?.forEach((h) => allSources.add(h));
+      if (desc.context.computedStyleSnapshot) {
+        Object.assign(styleSnapshot, desc.context.computedStyleSnapshot);
+      }
+      if (desc.context.dataAttributes) {
+        Object.assign(dataAttributes, desc.context.dataAttributes);
+      }
+    }
+  });
+
+  const context: import("../types").DevPilotElementContext | undefined =
+    matches.length > 0
+      ? {
+          cssClasses: Array.from(allCssClasses).slice(0, 12),
+          selectorCandidates: Array.from(allSelectors).slice(0, 8),
+          nearbyElements: Array.from(allNearby).slice(0, 6),
+          computedStyleSnapshot: Object.keys(styleSnapshot).length > 0 ? styleSnapshot : undefined,
+          componentHints: Array.from(allComponents).slice(0, 4),
+          sourceHints: Array.from(allSources).slice(0, 4),
+          dataAttributes: Object.keys(dataAttributes).length > 0 ? dataAttributes : undefined,
+        }
+      : undefined;
+
   return {
     rect: snappedRect,
     elementName:
@@ -657,5 +882,6 @@ export function describeCommittedAreaSelection(rect: DevPilotRect): {
     relatedElements,
     matchRects: matches.map((item) => item.rect),
     matchCount: matches.length,
+    context,
   };
 }
