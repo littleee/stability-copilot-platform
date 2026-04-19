@@ -186,6 +186,7 @@ const messages = {
     "mcpDoc.tocPorts": "Port behavior",
     "mcpDoc.tocConnect": "Connect DevPilot",
     "mcpDoc.tocAgents": "Connect agents",
+    "mcpDoc.tocManual": "Manual config",
     "mcpDoc.runTitle": "1. Start the MCP bridge",
     "mcpDoc.runBody":
       "This command starts the local HTTP bridge and the MCP server in one process.",
@@ -201,6 +202,15 @@ const messages = {
     "mcpDoc.agentsTitle": "4. Connect Claude, Codex, or another agent",
     "mcpDoc.agentsBody":
       "Point your coding agent to the DevPilot MCP server, then let it inspect sessions, read pending annotations, or work through repair requests.",
+    "mcpDoc.agentsRegisterBody":
+      "To register DevPilot MCP globally in Claude Code, add it with user scope:",
+    "mcpDoc.agentsRegisterNote":
+      "Claude does not discover DevPilot automatically. The command above writes a global MCP entry for Claude on this machine. If your bridge falls back to another port, replace 5213 with the actual port.",
+    "mcpDoc.manualTitle": "5. Add MCP manually",
+    "mcpDoc.manualBody":
+      "If you prefer to maintain Claude MCP entries yourself, add a server entry like this to your MCP config:",
+    "mcpDoc.manualNote":
+      "This starts both the local HTTP bridge and the stdio MCP server in one command. It uses port 5213 first and falls back automatically if you did not explicitly pass --port.",
   },
   zh: {
     "nav.home": "首页",
@@ -376,6 +386,7 @@ const messages = {
     "mcpDoc.tocPorts": "端口行为",
     "mcpDoc.tocConnect": "连接 DevPilot",
     "mcpDoc.tocAgents": "连接 agent",
+    "mcpDoc.tocManual": "手动配置",
     "mcpDoc.runTitle": "1. 启动 MCP bridge",
     "mcpDoc.runBody": "这条命令会在一个进程里同时启动本地 HTTP bridge 和 MCP server。",
     "mcpDoc.portsTitle": "2. 理解端口行为",
@@ -390,6 +401,15 @@ const messages = {
     "mcpDoc.agentsTitle": "4. 连接 Claude、Codex 或其他 agent",
     "mcpDoc.agentsBody":
       "把你的 coding agent 指向 DevPilot MCP server，然后让它读取会话、查看待处理标注，或者推进 repair request。",
+    "mcpDoc.agentsRegisterBody":
+      "如果你想把 DevPilot MCP 全局注册到 Claude Code，可以直接添加为 user scope：",
+    "mcpDoc.agentsRegisterNote":
+      "Claude 不会自动发现 DevPilot。上面这条命令会在当前机器上为 Claude 写入一条全局 MCP 配置。如果 bridge 回退到了别的端口，把 5213 改成实际端口即可。",
+    "mcpDoc.manualTitle": "5. 手动添加 MCP 配置",
+    "mcpDoc.manualBody":
+      "如果你更喜欢手动维护 Claude 的 MCP 配置，也可以在对应配置里加入下面这段 server 定义：",
+    "mcpDoc.manualNote":
+      "这条配置会在一个命令里同时启动本地 HTTP bridge 和 stdio MCP server。默认优先使用 5213；如果你没有显式传入 --port，端口被占用时会自动回退。",
   },
 };
 

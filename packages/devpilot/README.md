@@ -45,6 +45,18 @@ import { mountDevPilot } from "@littleee/devpilot";
 mountDevPilot();
 ```
 
+## Annotation Modes
+
+DevPilot supports three ways to select and annotate UI elements:
+
+| Mode | How | Best For |
+|---|---|---|
+| **Element** | Hover and click any element | Single-component issues |
+| **Text** | Select text on the page, then click the toolbar | Copy / content issues |
+| **Area** | Hold **Shift** and drag a rectangle | Grouped elements or layout regions |
+
+After selecting, type your description and press **Cmd/Ctrl + Enter** (or click **Add**) to save. The annotation appears as a numbered marker on the page. Click any marker to edit or delete it.
+
 ## Optional Mount Options
 
 ```ts
@@ -57,31 +69,22 @@ mountDevPilot({
 
 `DevPilot` is designed as a composable product surface:
 
-- core annotation: enabled by default
-- stability copilot: opt-in
-- MCP sync: opt-in, or enabled when `endpoint` is provided
+- **Core annotation**: enabled by default
+- **Stability Copilot**: opt-in. Can be toggled at any time via the settings panel switch
+- **MCP sync**: opt-in, enabled when `endpoint` is provided
 
 ```ts
 mountDevPilot({
   features: {
-    stability: true,
     mcp: true,
   },
-  endpoint: "http://127.0.0.1:4748",
+  endpoint: "http://127.0.0.1:5213",
 });
 ```
 
-If you want the stability module without remote sync:
+> `features.stability: true` only sets the initial state. The user can still turn Stability Copilot on or off in the settings panel at runtime. All state is persisted in `localStorage`.
 
-```ts
-mountDevPilot({
-  features: {
-    stability: true,
-  },
-});
-```
-
-When `stability` and `mcp` are both enabled, clicking the `修复` action in the stability panel creates an explicit repair request for AI agents. DevPilot does not automatically modify code after annotation.
+When `mcp` is enabled and an endpoint is provided, DevPilot syncs annotations and stability items to the local bridge. Repairs are created only when the user explicitly triggers them. DevPilot does not automatically modify code.
 
 ## Product Modes
 

@@ -2,6 +2,8 @@
 
 `@littleee/devpilot-mcp` 是 `DevPilot` 的本地 bridge 与 MCP 服务包。
 
+**只在「连接模式」时才需要安装。** 如果你只用 DevPilot 的标注和「复制给AI」功能，不需要装这个包。
+
 它会同时提供两层能力：
 
 - 本地 HTTP bridge，供浏览器侧 `DevPilot` 同步 session / annotation / thread
@@ -22,7 +24,7 @@ npm install @littleee/devpilot-mcp
 ## 启动
 
 ```bash
-npx @littleee/devpilot-mcp server
+npx -y @littleee/devpilot-mcp server
 ```
 
 默认会优先使用 `5213` 端口；如果这个端口已被占用，会自动尝试下一个可用端口。  
@@ -31,14 +33,72 @@ npx @littleee/devpilot-mcp server
 也可以只启动 MCP stdio，并指向一个已存在的 HTTP bridge：
 
 ```bash
-npx @littleee/devpilot-mcp server --mcp-only --http-url http://localhost:5213
+npx -y @littleee/devpilot-mcp server --mcp-only --http-url http://localhost:5213
 ```
 
 如果你希望把本地 bridge 常驻运行，再让不同 agent 单独连接，也可以只启动 HTTP：
 
 ```bash
-npx @littleee/devpilot-mcp server --http-only --port 5213
+npx -y @littleee/devpilot-mcp server --http-only --port 5213
 ```
+
+或者先全局安装再直接运行：
+
+```bash
+npm install -g @littleee/devpilot-mcp
+devpilot-mcp server
+```
+
+> **前置要求：** `better-sqlite3` 依赖原生 C++ 模块。如果你在安装时遇到编译错误，请确保系统已安装 Python 和 C++ 编译工具（macOS 上运行 `xcode-select --install`，Windows 上安装 Visual Studio Build Tools）。
+
+## 在 Claude CLI 里注册
+
+Claude Code 的 MCP 配置保存在 `~/.claude/settings.json`。编辑该文件并添加：
+
+```json
+{
+  "mcpServers": {
+    "devpilot": {
+      "command": "npx",
+      "args": ["-y", "@littleee/devpilot-mcp", "server"]
+    }
+  }
+}
+```
+
+这条配置的含义是：
+
+- Claude 会通过 `npx` 在需要时启动 `@littleee/devpilot-mcp`
+- `server` 会同时启动本地 HTTP bridge 和 stdio MCP server
+- 默认会优先使用 `5213` 端口；如果端口被占用且你没有显式传 `--port`，会自动回退到下一个可用端口
+
+如果你想固定端口：
+
+```json
+{
+  "mcpServers": {
+    "devpilot": {
+      "command": "npx",
+      "args": ["-y", "@littleee/devpilot-mcp", "server", "--port", "5213"]
+    }
+  }
+}
+```
+
+如果你已经单独启动了 HTTP bridge，改成只启动 MCP stdio：
+
+```json
+{
+  "mcpServers": {
+    "devpilot": {
+      "command": "npx",
+      "args": ["-y", "@littleee/devpilot-mcp", "server", "--mcp-only", "--http-url", "http://127.0.0.1:5213"]
+    }
+  }
+}
+```
+
+配置完成后重启 Claude Code，输入 `/mcp` 或问 "你有什么工具" 来验证。移除时从 `settings.json` 中删除对应条目即可。
 
 ## 浏览器接入
 
