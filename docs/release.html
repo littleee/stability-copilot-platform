@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DevPilot Release Announcement</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-shell nav-bar">
+        <a class="brand" href="./">DevPilot</a>
+        <nav class="top-nav">
+          <a href="./" data-i18n="nav.home">Home</a>
+          <a href="./getting-started.html" data-i18n="nav.start">Getting Started</a>
+          <a href="./mcp.html" data-i18n="nav.mcp">MCP Setup</a>
+          <a class="active" href="./release.html" data-i18n="nav.release">Announcement</a>
+        </nav>
+        <div class="language-switch" role="group" aria-label="Language switch">
+          <button id="lang-zh" class="lang-button" type="button">中文</button>
+          <button id="lang-en" class="lang-button active" type="button">English</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="doc-page">
+      <div class="site-shell">
+        <div class="doc-hero">
+          <p class="eyebrow" data-i18n="announce.eyebrow">Announcement</p>
+          <h1 data-i18n="announce.title">A bilingual launch note you can reuse.</h1>
+          <p class="subtitle" data-i18n="announce.subtitle">
+            This page is written for outbound sharing. You can reuse it for GitHub releases, social posts, internal updates, or beta invites.
+          </p>
+        </div>
+
+        <div class="doc-layout">
+          <aside class="toc">
+            <a href="#zh" data-i18n="announce.tocZh">Chinese</a>
+            <a href="#en" data-i18n="announce.tocEn">English</a>
+          </aside>
+
+          <div class="content">
+            <section id="zh" class="card">
+              <h2 data-i18n="announce.zhTitle">中文发布文案</h2>
+              <p data-i18n="announce.zhBody1">
+                DevPilot Beta 现已发布。
+              </p>
+              <p data-i18n="announce.zhBody2">
+                DevPilot 是一个把浏览器问题转成 AI 可执行前端任务的产品。当前版本已经把核心体验收敛到一条更清晰的主路径：在真实页面里标注问题，一键复制 AI 可读任务包，按需开启稳定性副驾，并通过 MCP bridge 连接 Claude、Codex 等 agent。
+              </p>
+              <ul>
+                <li data-i18n="announce.zhItem1">更强的 AI handoff task packet，带 selector、上下文、分组元素和源码线索。</li>
+                <li data-i18n="announce.zhItem2">可选的 Stability Copilot，用于运行时错误与请求失败问题。</li>
+                <li data-i18n="announce.zhItem3">首个公开的 `@littleee/devpilot-mcp` 包，作为本地 bridge 与 MCP server。</li>
+              </ul>
+            </section>
+
+            <section id="en" class="card">
+              <h2 data-i18n="announce.enTitle">English launch copy</h2>
+              <p data-i18n="announce.enBody1">DevPilot Beta is now available.</p>
+              <p data-i18n="announce.enBody2">
+                DevPilot turns browser issues into AI-ready frontend tasks. This beta sharpens the product around a clearer main path: annotate issues on real pages, copy clean task packets into AI coding tools, optionally enable Stability Copilot, and connect Claude, Codex, and other agents through the MCP bridge.
+              </p>
+              <ul>
+                <li data-i18n="announce.enItem1">Richer AI handoff task packets with selectors, grouped context, and source hints.</li>
+                <li data-i18n="announce.enItem2">Optional Stability Copilot for runtime errors and failed requests.</li>
+                <li data-i18n="announce.enItem3">First public release of `@littleee/devpilot-mcp` as the local bridge and MCP server.</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-shell footer-inner">
+        <span>DevPilot Beta</span>
+      </div>
+    </footer>
+
+    <script src="./assets/app.js"></script>
+  </body>
+</html>

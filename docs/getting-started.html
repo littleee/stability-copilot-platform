@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DevPilot Getting Started</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-shell nav-bar">
+        <a class="brand" href="./">DevPilot</a>
+        <nav class="top-nav">
+          <a href="./" data-i18n="nav.home">Home</a>
+          <a class="active" href="./getting-started.html" data-i18n="nav.start">Getting Started</a>
+          <a href="./mcp.html" data-i18n="nav.mcp">MCP Setup</a>
+          <a href="https://github.com/littleee/stability-copilot-platform">GitHub</a>
+        </nav>
+        <div class="language-switch" role="group" aria-label="Language switch">
+          <button id="lang-zh" class="lang-button" type="button">中文</button>
+          <button id="lang-en" class="lang-button active" type="button">English</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="doc-page">
+      <div class="site-shell">
+        <div class="doc-hero">
+          <p class="eyebrow" data-i18n="start.eyebrow">Getting Started</p>
+          <h1 data-i18n="start.title">Install DevPilot and use the local workflow.</h1>
+          <p class="subtitle" data-i18n="start.subtitle">
+            This guide covers the fastest path: install the browser package, mount DevPilot, annotate a page, and copy the task packet into an AI coding tool.
+          </p>
+        </div>
+
+        <div class="doc-layout">
+          <aside class="toc">
+            <a href="#install" data-i18n="start.tocInstall">Install</a>
+            <a href="#mount" data-i18n="start.tocMount">Mount</a>
+            <a href="#workflow" data-i18n="start.tocWorkflow">Workflow</a>
+            <a href="#tips" data-i18n="start.tocTips">Tips</a>
+          </aside>
+
+          <div class="content">
+            <section id="install" class="card">
+              <h2 data-i18n="start.installTitle">1. Install the package</h2>
+              <div class="code-block"><pre><code>npm install @littleee/devpilot</code></pre></div>
+              <p data-i18n="start.installBody">
+                DevPilot is a React browser package. It works well as a local-mode tool even before you connect an MCP bridge.
+              </p>
+            </section>
+
+            <section id="mount" class="card">
+              <h2 data-i18n="start.mountTitle">2. Mount DevPilot</h2>
+              <div class="code-block">
+                <pre><code>import { mountDevPilot } from "@littleee/devpilot";
+
+mountDevPilot({
+  defaultOpen: false,
+});</code></pre>
+              </div>
+              <p data-i18n="start.mountBody">
+                You can mount DevPilot on the page directly. In local mode, the core workflow is already available without any extra backend.
+              </p>
+            </section>
+
+            <section id="workflow" class="card">
+              <h2 data-i18n="start.workflowTitle">3. Use the local workflow</h2>
+              <ol>
+                <li data-i18n="start.workflow1">Click an element, select text, or draw an area annotation.</li>
+                <li data-i18n="start.workflow2">Describe the issue in plain language.</li>
+                <li data-i18n="start.workflow3">Use Copy to AI to generate the task packet.</li>
+                <li data-i18n="start.workflow4">Paste it into Claude, Codex, Cursor, or your preferred coding agent.</li>
+              </ol>
+            </section>
+
+            <section id="tips" class="card">
+              <h2 data-i18n="start.tipsTitle">4. Practical tips</h2>
+              <ul>
+                <li data-i18n="start.tip1">Use element annotations when you want the AI to target a specific control.</li>
+                <li data-i18n="start.tip2">Use area annotations when the issue spans multiple related elements.</li>
+                <li data-i18n="start.tip3">Keep the problem statement short and concrete; the task packet already carries structural context.</li>
+                <li data-i18n="start.tip4">Enable Stability Copilot only when you want runtime issue capture in addition to manual annotations.</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-shell footer-inner">
+        <span>DevPilot Beta</span>
+      </div>
+    </footer>
+
+    <script src="./assets/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DevPilot MCP Setup</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-shell nav-bar">
+        <a class="brand" href="./">DevPilot</a>
+        <nav class="top-nav">
+          <a href="./" data-i18n="nav.home">Home</a>
+          <a href="./getting-started.html" data-i18n="nav.start">Getting Started</a>
+          <a class="active" href="./mcp.html" data-i18n="nav.mcp">MCP Setup</a>
+          <a href="https://github.com/littleee/stability-copilot-platform">GitHub</a>
+        </nav>
+        <div class="language-switch" role="group" aria-label="Language switch">
+          <button id="lang-zh" class="lang-button" type="button">中文</button>
+          <button id="lang-en" class="lang-button active" type="button">English</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="doc-page">
+      <div class="site-shell">
+        <div class="doc-hero">
+          <p class="eyebrow" data-i18n="mcpDoc.eyebrow">MCP Setup</p>
+          <h1 data-i18n="mcpDoc.title">Run the bridge and connect DevPilot to AI agents.</h1>
+          <p class="subtitle" data-i18n="mcpDoc.subtitle">
+            Use the MCP bridge when you want synchronized sessions, SSE updates, stability persistence, and structured repair flows.
+          </p>
+        </div>
+
+        <div class="doc-layout">
+          <aside class="toc">
+            <a href="#run" data-i18n="mcpDoc.tocRun">Run server</a>
+            <a href="#ports" data-i18n="mcpDoc.tocPorts">Port behavior</a>
+            <a href="#connect" data-i18n="mcpDoc.tocConnect">Connect DevPilot</a>
+            <a href="#agents" data-i18n="mcpDoc.tocAgents">Connect agents</a>
+          </aside>
+
+          <div class="content">
+            <section id="run" class="card">
+              <h2 data-i18n="mcpDoc.runTitle">1. Start the MCP bridge</h2>
+              <div class="code-block"><pre><code>npx @littleee/devpilot-mcp server</code></pre></div>
+              <p data-i18n="mcpDoc.runBody">
+                This command starts the local HTTP bridge and the MCP server in one process.
+              </p>
+            </section>
+
+            <section id="ports" class="card">
+              <h2 data-i18n="mcpDoc.portsTitle">2. Understand port behavior</h2>
+              <ul>
+                <li data-i18n="mcpDoc.port1">Default startup begins with port 5213.</li>
+                <li data-i18n="mcpDoc.port2">If 5213 is occupied and you did not pass --port, DevPilot MCP automatically falls back to the next available port.</li>
+                <li data-i18n="mcpDoc.port3">If you explicitly pass --port and it is occupied, the server stops with a clear error instead of silently switching ports.</li>
+              </ul>
+            </section>
+
+            <section id="connect" class="card">
+              <h2 data-i18n="mcpDoc.connectTitle">3. Connect DevPilot in the browser</h2>
+              <div class="code-block">
+                <pre><code>mountDevPilot({
+  endpoint: "http://localhost:5213",
+  features: {
+    mcp: true,
+    stability: true,
+  },
+});</code></pre>
+              </div>
+              <p data-i18n="mcpDoc.connectBody">
+                In connected mode, DevPilot can sync sessions, send SSE updates, and route stability or repair workflows through the bridge.
+              </p>
+            </section>
+
+            <section id="agents" class="card">
+              <h2 data-i18n="mcpDoc.agentsTitle">4. Connect Claude, Codex, or another agent</h2>
+              <p data-i18n="mcpDoc.agentsBody">
+                Point your coding agent to the DevPilot MCP server, then let it inspect sessions, read pending annotations, or work through repair requests.
+              </p>
+              <div class="code-block">
+                <pre><code>npx @littleee/devpilot-mcp server --mcp-only --http-url http://localhost:5213</code></pre>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-shell footer-inner">
+        <span>DevPilot MCP Beta</span>
+      </div>
+    </footer>
+
+    <script src="./assets/app.js"></script>
+  </body>
+</html>
