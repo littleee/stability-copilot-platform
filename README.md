@@ -15,7 +15,7 @@ Today, the repository ships the first practical foundation of that workflow: a b
 
 ## What Exists Today
 
-Current `v0.1.x` capabilities:
+Current `v0.2.0 beta` capabilities:
 
 - floating in-page toolbar mounted through a Shadow DOM host
 - element, text, and area annotations created directly on the live page
