@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DevPilot Docs</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero-inner">
+        <p class="eyebrow">DevPilot Beta</p>
+        <h1 data-i18n="hero.title">Turn browser issues into AI-ready frontend tasks.</h1>
+        <p class="subtitle" data-i18n="hero.subtitle">
+          DevPilot helps teams annotate real pages, capture runtime issues, and hand clean task
+          packets to Claude, Codex, and connected MCP workflows.
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="https://www.npmjs.com/package/@littleee/devpilot">npm: @littleee/devpilot</a>
+          <a class="button" href="https://www.npmjs.com/package/@littleee/devpilot-mcp">npm: @littleee/devpilot-mcp</a>
+          <a class="button" href="https://github.com/littleee/stability-copilot-platform">GitHub</a>
+        </div>
+        <div class="language-switch" role="group" aria-label="Language switch">
+          <button id="lang-zh" class="lang-button" type="button">中文</button>
+          <button id="lang-en" class="lang-button active" type="button">English</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <nav class="toc">
+        <a href="#release" data-i18n="toc.release">Release</a>
+        <a href="#what" data-i18n="toc.what">What is DevPilot</a>
+        <a href="#modes" data-i18n="toc.modes">Modes</a>
+        <a href="#quickstart" data-i18n="toc.quickstart">Quick Start</a>
+        <a href="#mcp" data-i18n="toc.mcp">MCP Bridge</a>
+        <a href="#workflow" data-i18n="toc.workflow">Typical Workflow</a>
+        <a href="#links" data-i18n="toc.links">Links</a>
+      </nav>
+
+      <div class="content">
+        <section id="release" class="card">
+          <h2 data-i18n="release.title">Public Beta Release</h2>
+          <p data-i18n="release.body1">
+            DevPilot is now available as a public beta for teams who want a practical browser-to-code workflow.
+          </p>
+          <p data-i18n="release.body2">
+            The current release sharpens the product around annotate -> copy to AI, while keeping Stability Copilot and MCP-connected repair flows available as optional power-ups.
+          </p>
+          <ul>
+            <li data-i18n="release.item1">Richer AI task packets with selectors, nearby context, grouped elements, and source hints.</li>
+            <li data-i18n="release.item2">Optional Stability Copilot for runtime issues such as JS errors, failed fetches, and rejected promises.</li>
+            <li data-i18n="release.item3">A companion MCP bridge for Claude, Codex, and other compatible coding agents.</li>
+          </ul>
+        </section>
+
+        <section id="what" class="card">
+          <h2 data-i18n="what.title">What is DevPilot</h2>
+          <p data-i18n="what.body1">
+            DevPilot is a browser-native frontend copilot. It lets you annotate real pages, copy AI-ready task packets, and optionally connect an MCP bridge for synchronized issue handling and repair workflows.
+          </p>
+          <p data-i18n="what.body2">
+            The product is designed as one workflow with two modes: local mode works immediately, connected mode adds collaboration and AI repair orchestration.
+          </p>
+        </section>
+
+        <section id="modes" class="card two-up">
+          <div>
+            <h2 data-i18n="modes.localTitle">Local Mode</h2>
+            <p data-i18n="modes.localBody">
+              Use DevPilot as a browser annotation tool on its own. Create element, text, or area annotations, then copy them straight into Claude, Codex, Cursor, or another AI tool.
+            </p>
+          </div>
+          <div>
+            <h2 data-i18n="modes.connectedTitle">Connected Mode</h2>
+            <p data-i18n="modes.connectedBody">
+              Connect DevPilot to the MCP bridge to sync sessions, stream updates over SSE, track stability items, and hand structured repair requests to AI agents.
+            </p>
+          </div>
+        </section>
+
+        <section id="quickstart" class="card">
+          <h2 data-i18n="quickstart.title">Quick Start</h2>
+          <div class="code-block">
+            <pre><code>npm install @littleee/devpilot</code></pre>
+          </div>
+          <div class="code-block">
+            <pre><code>import { mountDevPilot } from "@littleee/devpilot";
+
+mountDevPilot({
+  defaultOpen: false,
+});
+</code></pre>
+          </div>
+          <p data-i18n="quickstart.body">
+            In beta, the simplest workflow is: annotate on the page, then use Copy to AI to send a clean task packet to your coding assistant.
+          </p>
+        </section>
+
+        <section id="mcp" class="card">
+          <h2 data-i18n="mcp.title">MCP Bridge</h2>
+          <div class="code-block">
+            <pre><code>npx @littleee/devpilot-mcp server</code></pre>
+          </div>
+          <p data-i18n="mcp.body1">
+            The MCP bridge starts a local HTTP bridge and MCP server for connected workflows.
+          </p>
+          <p data-i18n="mcp.body2">
+            If port 5213 is available, it uses that by default. If 5213 is already occupied and you did not pass --port, it automatically falls back to the next available port.
+          </p>
+          <div class="code-block">
+            <pre><code>mountDevPilot({
+  endpoint: "http://localhost:5213",
+  features: {
+    mcp: true,
+    stability: true,
+  },
+});</code></pre>
+          </div>
+        </section>
+
+        <section id="workflow" class="card">
+          <h2 data-i18n="workflow.title">Typical Workflow</h2>
+          <ol>
+            <li data-i18n="workflow.step1">Open DevPilot on a real page and create an annotation.</li>
+            <li data-i18n="workflow.step2">Copy the generated task packet into Claude, Codex, or another coding agent.</li>
+            <li data-i18n="workflow.step3">Optionally enable Stability Copilot to auto-capture runtime failures.</li>
+            <li data-i18n="workflow.step4">Connect the MCP bridge when you want synchronized sessions and repair flows.</li>
+          </ol>
+        </section>
+
+        <section id="links" class="card">
+          <h2 data-i18n="links.title">Links</h2>
+          <ul class="link-list">
+            <li><a href="https://github.com/littleee/stability-copilot-platform" data-i18n="links.repo">GitHub repository</a></li>
+            <li><a href="https://github.com/littleee/stability-copilot-platform/releases/tag/devpilot-v0.2.0" data-i18n="links.release">DevPilot v0.2.0 Beta release</a></li>
+            <li><a href="https://github.com/littleee/stability-copilot-platform/releases/tag/devpilot-mcp-v0.1.0" data-i18n="links.mcpRelease">DevPilot MCP v0.1.0 Beta release</a></li>
+            <li><a href="https://www.npmjs.com/package/@littleee/devpilot">@littleee/devpilot</a></li>
+            <li><a href="https://www.npmjs.com/package/@littleee/devpilot-mcp">@littleee/devpilot-mcp</a></li>
+          </ul>
+        </section>
+      </div>
+    </main>
+
+    <script src="./assets/app.js"></script>
+  </body>
+</html>
