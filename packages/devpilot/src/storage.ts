@@ -159,15 +159,17 @@ export function loadSessionId(pathname: string): string | null {
   }
 }
 
-export function loadStabilityCopilotEnabled(): boolean {
+export function loadStabilityCopilotEnabled(): boolean | null {
   if (typeof window === "undefined") {
-    return false;
+    return null;
   }
 
   try {
-    return window.localStorage.getItem(STABILITY_COPILOT_KEY) === "true";
+    const raw = window.localStorage.getItem(STABILITY_COPILOT_KEY);
+    if (raw === null) return null;
+    return raw === "true";
   } catch {
-    return false;
+    return null;
   }
 }
 

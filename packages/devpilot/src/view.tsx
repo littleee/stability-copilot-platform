@@ -66,7 +66,7 @@ function DevPilotApp({
     [endpoint, features],
   );
   const [stabilityCopilotEnabled, setStabilityCopilotEnabled] = useState(() =>
-    resolvedFeatures.stability || loadStabilityCopilotEnabled(),
+    loadStabilityCopilotEnabled() ?? resolvedFeatures.stability,
   );
   const syncEndpoint = resolvedFeatures.mcp ? endpoint : undefined;
 
