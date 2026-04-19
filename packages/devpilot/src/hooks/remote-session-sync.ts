@@ -266,8 +266,32 @@ export function useRemoteSessionSync({
       syncing = true;
 
       try {
-        let remoteSession = await getRemoteSession(syncEndpoint, currentSessionId);
-        if (cancelled) {
+        let remoteSession: Awaited<ReturnType<typeof getRemoteSession>> | null = null;
+        try {
+          remoteSession = await getRemoteSession(syncEndpoint, currentSessionId);
+        } catch (error) {
+          const isNotFound =
+            error instanceof Error &&
+            (error.message.includes("404") || (error as { status?: number }).status === 404);
+          if (isNotFound) {
+            const newSession = await ensureRemoteSession(syncEndpoint, {
+              pageKey: `${window.location.origin}${pathname}`,
+              pathname,
+              url: window.location.href,
+              title: document.title || pathname,
+            });
+            if (cancelled) {
+              return;
+            }
+            setCurrentSessionId(newSession.id);
+            saveSessionId(pathname, newSession.id);
+            remoteSession = await getRemoteSession(syncEndpoint, newSession.id);
+          } else {
+            throw error;
+          }
+        }
+
+        if (cancelled || !remoteSession) {
           return;
         }
 
