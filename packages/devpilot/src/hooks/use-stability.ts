@@ -471,8 +471,12 @@ export function useStability(options: UseStabilityOptions) {
         setRepairRequests((current) => mergeRemoteRepairRequests(current, [remoteRequest]));
         succeeded = true;
       } else {
-        setRepairRequests((current) => mergeRemoteRepairRequests(current, [localRequest]));
         succeeded = await copyTextToClipboard(prompt);
+        if (succeeded) {
+          setRepairRequests((current) =>
+            mergeRemoteRepairRequests(current, [localRequest]),
+          );
+        }
       }
     } catch (error) {
       const message = "[DevPilot] Failed to trigger repair request";

@@ -725,36 +725,14 @@ function DevPilotApp({
         <StabilityPanel
           panelLeft={panelLeft}
           panelBottom={panelBottom}
-          stabilityCopyState={stabilityHook.stabilityCopyState}
           openStabilityItems={stabilityHook.openStabilityItems}
-          resolvedStabilityItems={stabilityHook.resolvedStabilityItems}
-          stabilitySummary={stabilityHook.stabilitySummary}
-          isStabilityComposerOpen={stabilityHook.isStabilityComposerOpen}
-          stabilityEditingId={stabilityHook.stabilityEditingId}
-          stabilityDraft={stabilityHook.stabilityDraft}
           stabilityActiveId={stabilityHook.stabilityActiveId}
           activeStabilityItem={stabilityHook.activeStabilityItem}
-          latestActiveRepairRequest={stabilityHook.latestActiveRepairRequest}
-          repairTargetId={stabilityHook.repairTargetId}
-          repairState={stabilityHook.repairState}
-          onCopyOpenItems={() => {
-            void stabilityHook.handleCopyStabilityItems(stabilityHook.openStabilityItems);
-          }}
-          onOpenComposer={stabilityHook.openStabilityComposer}
           onClose={() => setMode("annotate")}
-          onDraftChange={stabilityHook.handleStabilityDraftChange}
-          onResetComposer={stabilityHook.resetStabilityComposer}
-          onDeleteComposerItem={stabilityHook.handleDeleteStabilityItem}
-          onSaveStabilityItem={stabilityHook.handleSaveStabilityItem}
           onSelectStabilityItem={stabilityHook.setStabilityActiveId}
           onCopyStabilityItem={(item) => {
             void stabilityHook.handleCopyStabilityItems([item]);
           }}
-          onRequestRepair={(item) => {
-            void stabilityHook.handleRequestStabilityRepair(item);
-          }}
-          onSetStabilityItemStatus={stabilityHook.setStabilityItemStatus}
-          onDeleteStabilityItem={stabilityHook.handleDeleteStabilityItemRecord}
         />
       ) : null}
     </div>
