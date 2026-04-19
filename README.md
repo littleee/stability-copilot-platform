@@ -1,5 +1,7 @@
 # DevPilot
 
+**English | [中文](README.zh-CN.md)**
+
 `@littleee/devpilot` is a page-native frontend copilot for turning what happens in the browser into actionable engineering work.
 
 The long-term goal is a single workflow that can:
