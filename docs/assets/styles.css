@@ -55,11 +55,21 @@ a {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: var(--text);
   font-size: 20px;
   font-weight: 800;
   text-decoration: none;
   letter-spacing: 0.02em;
+}
+
+.brand-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--accent);
+  flex-shrink: 0;
 }
 
 .top-nav {
