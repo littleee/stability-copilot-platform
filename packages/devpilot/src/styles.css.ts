@@ -860,6 +860,72 @@ export const styles = `
     cursor: pointer;
   }
 
+  .dl-language-select {
+    position: relative;
+    display: inline-block;
+  }
+
+  .dl-language-select-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+
+  .dl-language-select-trigger:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .dl-language-select-trigger svg {
+    opacity: 0.6;
+    transition: transform 160ms ease;
+  }
+
+  .dl-language-select-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 2147483647;
+    min-width: 120px;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #1e1e2e;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .dl-language-select-option {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+
+  .dl-language-select-option:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .dl-language-select-option-active {
+    color: #60a5fa;
+    background: rgba(59, 130, 246, 0.12);
+  }
+
   .dl-switch {
     display: inline-flex;
     align-items: center;

@@ -5,6 +5,7 @@ import {
   getStabilitySeverityLabel,
   getStabilityStatusLabel,
 } from "../stability/state";
+import { useI18n } from "../i18n";
 import type {
   DevPilotStabilityItem,
 } from "../types";
@@ -50,38 +51,12 @@ function inferIssueType(item: DevPilotStabilityItem): string {
   return "Issue";
 }
 
-function formatRelativeTime(timestamp: number): string {
-  const diff = Date.now() - timestamp;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
 function getCapturedAt(item: DevPilotStabilityItem): number {
   return item.context.capturedAt || item.createdAt;
 }
 
 function isNewItem(item: DevPilotStabilityItem): boolean {
   return Date.now() - getCapturedAt(item) < 5 * 60 * 1000;
-}
-
-function getIssueSummary(item: DevPilotStabilityItem): string {
-  const type = inferIssueType(item);
-
-  if (type === "Fetch") {
-    return "页面请求失败，可能导致当前区域无法加载数据或完成操作。";
-  }
-  if (type === "Promise") {
-    return "页面里的异步流程被中断，可能导致状态没有更新或交互停在中间态。";
-  }
-  if (type === "Error") {
-    return "页面运行时出现错误，当前模块可能无法继续正常工作。";
-  }
-  return "页面运行时出现异常，建议尽快交给 AI 或开发者继续诊断。";
 }
 
 export function StabilityPanel({
@@ -94,7 +69,34 @@ export function StabilityPanel({
   onSelectStabilityItem,
   onCopyStabilityItem,
 }: StabilityPanelProps) {
+  const { t, locale } = useI18n();
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+
+  function formatRelativeTime(timestamp: number): string {
+    const diff = Date.now() - timestamp;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+
+    if (minutes < 1) return t("stability.justNow");
+    if (minutes < 60) return t("stability.minutesAgo", { n: minutes });
+    if (hours < 24) return t("stability.hoursAgo", { n: hours });
+    return t("stability.daysAgo", { n: Math.floor(hours / 24) });
+  }
+
+  function getIssueSummary(item: DevPilotStabilityItem): string {
+    const type = inferIssueType(item);
+
+    if (type === "Fetch") {
+      return t("stability.issueFetch");
+    }
+    if (type === "Promise") {
+      return t("stability.issuePromise");
+    }
+    if (type === "Error") {
+      return t("stability.issueError");
+    }
+    return t("stability.issueGeneric");
+  }
 
   const lastCaptureTime =
     [...openStabilityItems].reduce<number>(
@@ -114,13 +116,13 @@ export function StabilityPanel({
       {/* Header */}
       <div className="dl-session-header dl-stability-panel-header">
         <div className="dl-session-header-main">
-          <h3 className="dl-session-title">Stability Copilot</h3>
+          <h3 className="dl-session-title">{t("stability.title")}</h3>
         </div>
         <button
           className="dl-toolbar-icon-button dl-stability-panel-close"
           data-kind="secondary"
           onClick={onClose}
-          title="Close"
+          title={t("stability.close")}
         >
           <CollapseIcon />
         </button>
@@ -130,23 +132,22 @@ export function StabilityPanel({
       <div className="dl-stability-status-bar">
         <span className="dl-stability-status-dot" data-on />
         <span className="dl-stability-status-text">
-          Watching for runtime issues
+          {t("stability.watching")}
         </span>
         {lastCaptureTime ? (
           <span className="dl-stability-status-meta">
-            Last captured {formatRelativeTime(lastCaptureTime)}
+            {t("stability.lastCaptured")} {formatRelativeTime(lastCaptureTime)}
           </span>
         ) : null}
         <span className="dl-stability-status-meta">
-          {openStabilityItems.length} open{" "}
-          {openStabilityItems.length === 1 ? "issue" : "issues"}
+          {openStabilityItems.length} {openStabilityItems.length === 1 ? t("stability.issue") : t("stability.issues")}
         </span>
       </div>
 
       {/* Section 2: Issue Inbox */}
       <div className="dl-stability-inbox">
         <div className="dl-stability-inbox-header">
-          <span className="dl-stability-inbox-title">Open Issues</span>
+          <span className="dl-stability-inbox-title">{t("stability.openIssues")}</span>
           <span className="dl-stability-inbox-count">
             {openStabilityItems.length}
           </span>
@@ -161,11 +162,10 @@ export function StabilityPanel({
           {openStabilityItems.length === 0 ? (
             <div className="dl-stability-empty">
               <div className="dl-stability-empty-title">
-                No issues captured yet
+                {t("stability.noIssues")}
               </div>
               <div className="dl-stability-empty-body">
-                Stability Copilot is watching for JS errors, promise
-                rejections, and failed requests.
+                {t("stability.watchingDescription")}
               </div>
             </div>
           ) : (
@@ -189,7 +189,7 @@ export function StabilityPanel({
                     </span>
                     {isNewItem(item) ? (
                       <span className="dl-stability-inbox-item-new-badge">
-                        New
+                        {t("stability.new")}
                       </span>
                     ) : null}
                   </div>
@@ -200,7 +200,7 @@ export function StabilityPanel({
                       className="dl-severity-pill"
                       data-severity={item.severity}
                     >
-                      {getStabilitySeverityLabel(item.severity)}
+                      {getStabilitySeverityLabel(item.severity, t)}
                     </span>
                   </div>
                 </div>
@@ -219,13 +219,13 @@ export function StabilityPanel({
                 className="dl-status-pill"
                 data-status={activeStabilityItem.status}
               >
-                {getStabilityStatusLabel(activeStabilityItem.status)}
+                {getStabilityStatusLabel(activeStabilityItem.status, t)}
               </span>
               <span
                 className="dl-severity-pill"
                 data-severity={activeStabilityItem.severity}
               >
-                {getStabilitySeverityLabel(activeStabilityItem.severity)}
+                {getStabilitySeverityLabel(activeStabilityItem.severity, t)}
               </span>
             </div>
             <h4 className="dl-detail-title">{activeStabilityItem.title}</h4>
@@ -238,11 +238,11 @@ export function StabilityPanel({
           <div className="dl-detail-card">
             <div className="dl-stability-action-summary">
               <div className="dl-stability-action-summary-item">
-                <strong>Observed</strong>
+                <strong>{t("stability.observed")}</strong>
                 <span>{formatRelativeTime(getCapturedAt(activeStabilityItem))}</span>
               </div>
               <div className="dl-stability-action-summary-item">
-                <strong>Page</strong>
+                <strong>{t("stability.page")}</strong>
                 <span>{activeStabilityItem.context.pathname}</span>
               </div>
             </div>
@@ -252,7 +252,7 @@ export function StabilityPanel({
                 data-kind="primary"
                 onClick={() => onCopyStabilityItem(activeStabilityItem)}
               >
-                复制
+                {t("stability.copy")}
               </button>
             </div>
           </div>
@@ -265,8 +265,8 @@ export function StabilityPanel({
                 setShowTechnicalDetails((current) => !current)
               }
             >
-              <span>技术细节</span>
-              <span>{showTechnicalDetails ? "收起" : "展开"}</span>
+              <span>{t("stability.technicalDetails")}</span>
+              <span>{showTechnicalDetails ? t("stability.collapse") : t("stability.expand")}</span>
             </button>
             {showTechnicalDetails ? (
               <div className="dl-detail-meta">
@@ -274,7 +274,7 @@ export function StabilityPanel({
                   className="dl-detail-kv"
                   style={{ gridColumn: "1 / -1" }}
                 >
-                  <strong>Observed symptom</strong>
+                  <strong>{t("stability.observedSymptom")}</strong>
                   <span>{activeStabilityItem.symptom}</span>
                 </div>
                 {activeStabilityItem.signals ? (
@@ -282,35 +282,35 @@ export function StabilityPanel({
                     className="dl-detail-kv"
                     style={{ gridColumn: "1 / -1" }}
                   >
-                    <strong>Signals</strong>
+                    <strong>{t("stability.signals")}</strong>
                     <span>{activeStabilityItem.signals}</span>
                   </div>
                 ) : null}
                 <div className="dl-detail-kv">
-                  <strong>Page</strong>
+                  <strong>{t("stability.page")}</strong>
                   <span>{activeStabilityItem.context.title}</span>
                 </div>
                 <div className="dl-detail-kv">
-                  <strong>Path</strong>
+                  <strong>{t("stability.path")}</strong>
                   <span>{activeStabilityItem.context.pathname}</span>
                 </div>
                 <div
                   className="dl-detail-kv"
                   style={{ gridColumn: "1 / -1" }}
                 >
-                  <strong>URL</strong>
+                  <strong>{t("stability.url")}</strong>
                   <span>{activeStabilityItem.context.url}</span>
                 </div>
                 <div className="dl-detail-kv">
-                  <strong>Viewport</strong>
+                  <strong>{t("stability.viewport")}</strong>
                   <span>
                     {activeStabilityItem.context.viewport.width} ×{" "}
                     {activeStabilityItem.context.viewport.height}
                   </span>
                 </div>
                 <div className="dl-detail-kv">
-                  <strong>Captured</strong>
-                  <span>{formatTime(getCapturedAt(activeStabilityItem))}</span>
+                  <strong>{t("stability.captured")}</strong>
+                  <span>{formatTime(getCapturedAt(activeStabilityItem), locale)}</span>
                 </div>
               </div>
             ) : null}

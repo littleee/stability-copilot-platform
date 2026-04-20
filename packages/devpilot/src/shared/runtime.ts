@@ -45,8 +45,8 @@ export function ensurePopupPositionFromPoint(
   return ensureWithinViewport(anchorRect, width, height);
 }
 
-export function formatTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString("zh-CN", {
+export function formatTime(timestamp: number, locale = "zh-CN"): string {
+  return new Date(timestamp).toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",

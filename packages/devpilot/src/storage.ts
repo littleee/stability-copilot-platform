@@ -7,6 +7,7 @@ import {
 
 const ANNOTATION_PREFIX = "devpilot.annotations:";
 const STABILITY_COPILOT_KEY = "devpilot.stability-copilot";
+const LOCALE_KEY = "devpilot.locale";
 const POSITION_KEY = "devpilot.position";
 const SESSION_PREFIX = "devpilot.session:";
 
@@ -171,6 +172,30 @@ export function saveFloatingPosition(position: DevPilotFloatingPosition): void {
 
   try {
     window.localStorage.setItem(POSITION_KEY, JSON.stringify(position));
+  } catch {
+    // Ignore localStorage failures.
+  }
+}
+
+export function loadLocale(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.localStorage.getItem(LOCALE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveLocale(locale: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(LOCALE_KEY, locale);
   } catch {
     // Ignore localStorage failures.
   }

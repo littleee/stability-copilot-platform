@@ -3,6 +3,7 @@ import type {
   DevPilotStabilitySeverity,
   DevPilotStabilityStatus,
 } from "../types";
+import type { I18nContextValue } from "../i18n/context";
 
 export type DevPilotStabilityDraft = {
   title: string;
@@ -28,29 +29,31 @@ export function getDefaultStabilityDraft(): DevPilotStabilityDraft {
 
 export function getStabilityStatusLabel(
   status: DevPilotStabilityStatus,
+  t: I18nContextValue["t"],
 ): string {
   switch (status) {
     case "diagnosing":
-      return "排查中";
+      return t("stabilityState.diagnosing");
     case "resolved":
-      return "已解决";
+      return t("stabilityState.resolved");
     default:
-      return "待处理";
+      return t("stabilityState.open");
   }
 }
 
 export function getStabilitySeverityLabel(
   severity: DevPilotStabilitySeverity,
+  t: I18nContextValue["t"],
 ): string {
   switch (severity) {
     case "low":
-      return "低";
+      return t("stabilityState.low");
     case "medium":
-      return "中";
+      return t("stabilityState.medium");
     case "critical":
-      return "紧急";
+      return t("stabilityState.critical");
     default:
-      return "高";
+      return t("stabilityState.high");
   }
 }
 

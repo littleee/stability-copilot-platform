@@ -3,6 +3,7 @@ import React from "react";
 import { getAnnotationKind } from "../output";
 import { getAnnotationStatusLabel } from "../annotation/state";
 import { formatTime } from "../shared/runtime";
+import { useI18n } from "../i18n";
 import type {
   DevPilotAnnotation,
   DevPilotAnnotationStatus,
@@ -53,6 +54,8 @@ export function SessionPanel({
   onSetAnnotationStatus,
   onDeleteAnnotation,
 }: SessionPanelProps) {
+  const { t, locale } = useI18n();
+
   return (
     <section
       className="dl-session-panel"
@@ -60,9 +63,9 @@ export function SessionPanel({
     >
       <div className="dl-session-header">
         <div>
-          <h3 className="dl-session-title">本页标注</h3>
+          <h3 className="dl-session-title">{t("session.title")}</h3>
           <p className="dl-session-subtitle">
-            这里先只展示 annotation，会话、稳定性和 MCP 同步后续再逐步接进来。
+            {t("session.subtitle")}
           </p>
         </div>
         <div className="dl-session-header-actions">
@@ -77,19 +80,19 @@ export function SessionPanel({
             }
             disabled={openAnnotations.length === 0}
             onClick={onCopy}
-            title="复制本页仍需处理的标注信息"
+            title={t("session.copyTooltip")}
           >
             {copyState === "copied"
-              ? "已复制当前标注"
+              ? t("session.copied")
               : copyState === "failed"
-                ? "复制失败"
-                : "复制当前标注"}
+                ? t("session.copyFailed")
+                : t("session.copyCurrent")}
           </button>
           <button
             className="dl-toolbar-icon-button"
             data-kind="secondary"
             onClick={onClose}
-            title="关闭会话面板"
+            title={t("session.close")}
           >
             <CollapseIcon />
           </button>
@@ -97,30 +100,30 @@ export function SessionPanel({
       </div>
       <div className="dl-summary-grid">
         <div className="dl-summary-card">
-          <span className="dl-summary-label">未完成</span>
+          <span className="dl-summary-label">{t("session.open")}</span>
           <span className="dl-summary-value">{summary.open}</span>
         </div>
         <div className="dl-summary-card">
-          <span className="dl-summary-label">处理中</span>
+          <span className="dl-summary-label">{t("session.acknowledged")}</span>
           <span className="dl-summary-value">{summary.acknowledged}</span>
         </div>
         <div className="dl-summary-card">
-          <span className="dl-summary-label">当前总数</span>
+          <span className="dl-summary-label">{t("session.total")}</span>
           <span className="dl-summary-value">{summary.total}</span>
         </div>
       </div>
       <div className="dl-session-body">
         <div className="dl-session-section">
           <div className="dl-session-section-header">
-            <h4 className="dl-session-section-title">当前待处理</h4>
+            <h4 className="dl-session-section-title">{t("session.pending")}</h4>
             <span className="dl-session-section-count">{openAnnotations.length}</span>
           </div>
           <div className="dl-session-list">
             {openAnnotations.length === 0 ? (
               <div className="dl-session-empty">
                 {annotations.length === 0
-                  ? "还没有本页标注。进入“标注模式”后点击页面元素，即可就地创建 annotation。"
-                  : "当前没有未完成标注。解决或忽略后的项目会直接从本页移除。"}
+                  ? t("session.emptyNoAnnotations")
+                  : t("session.emptyNoPending")}
               </div>
             ) : (
               openAnnotations.map((annotation) => (
@@ -134,7 +137,7 @@ export function SessionPanel({
                   <div className="dl-annotation-main">
                     <div className="dl-annotation-top">
                       <span className="dl-status-pill" data-status={annotation.status}>
-                        {getAnnotationStatusLabel(annotation.status)}
+                        {getAnnotationStatusLabel(annotation.status, t)}
                       </span>
                     </div>
                     <div className="dl-annotation-comment">{annotation.comment}</div>
@@ -146,7 +149,7 @@ export function SessionPanel({
                   </div>
                   <div className="dl-annotation-side">
                     <span className="dl-annotation-time">
-                      {formatTime(annotation.updatedAt)}
+                      {formatTime(annotation.updatedAt, locale)}
                     </span>
                     <span className="dl-annotation-chevron">›</span>
                   </div>
@@ -158,21 +161,21 @@ export function SessionPanel({
 
         <div className="dl-session-section">
           <div className="dl-session-section-header">
-            <h4 className="dl-session-section-title">当前详情</h4>
+            <h4 className="dl-session-section-title">{t("session.detailTitle")}</h4>
             <span className="dl-section-note">
-              Claude / Cursor 回复后也会在这里继续展开
+              {t("session.detailNote")}
             </span>
           </div>
           <div className="dl-session-detail">
             {activeAnnotation ? (
               <>
                 <div className="dl-detail-card">
-                  <h4 className="dl-detail-title">当前标注</h4>
+                  <h4 className="dl-detail-title">{t("session.currentAnnotation")}</h4>
                   <div className="dl-detail-body">{activeAnnotation.comment}</div>
                   {getAnnotationKind(activeAnnotation) === "text" &&
                   activeAnnotation.selectedText ? (
                     <>
-                      <div className="dl-section-note">选中文本</div>
+                      <div className="dl-section-note">{t("session.selectedText")}</div>
                       <div className="dl-detail-quote">
                         {activeAnnotation.selectedText}
                       </div>
@@ -181,29 +184,29 @@ export function SessionPanel({
                 </div>
 
                 <div className="dl-detail-card">
-                  <h4 className="dl-detail-title">元素上下文</h4>
+                  <h4 className="dl-detail-title">{t("session.elementContext")}</h4>
                   <div className="dl-detail-meta">
                     <div className="dl-detail-kv">
-                      <strong>元素摘要</strong>
+                      <strong>{t("session.elementSummary")}</strong>
                       <span>{activeAnnotation.elementName}</span>
                     </div>
                     <div className="dl-detail-kv">
-                      <strong>状态</strong>
-                      <span>{getAnnotationStatusLabel(activeAnnotation.status)}</span>
+                      <strong>{t("session.status")}</strong>
+                      <span>{getAnnotationStatusLabel(activeAnnotation.status, t)}</span>
                     </div>
                     <div className="dl-detail-kv" style={{ gridColumn: "1 / -1" }}>
-                      <strong>元素路径</strong>
+                      <strong>{t("session.elementPath")}</strong>
                       <span>{activeAnnotation.elementPath}</span>
                     </div>
                     {activeAnnotation.nearbyText ? (
                       <div className="dl-detail-kv" style={{ gridColumn: "1 / -1" }}>
-                        <strong>附近文本</strong>
+                        <strong>{t("session.nearbyText")}</strong>
                         <span>{activeAnnotation.nearbyText}</span>
                       </div>
                     ) : null}
                     {activeAnnotation.relatedElements?.length ? (
                       <div className="dl-detail-kv" style={{ gridColumn: "1 / -1" }}>
-                        <strong>命中元素</strong>
+                        <strong>{t("session.matchedElements")}</strong>
                         <div className="dl-detail-chip-list">
                           {activeAnnotation.relatedElements.map((item) => (
                             <span key={item} className="dl-detail-chip">
@@ -214,16 +217,16 @@ export function SessionPanel({
                       </div>
                     ) : null}
                     <div className="dl-detail-kv">
-                      <strong>创建时间</strong>
-                      <span>{formatTime(activeAnnotation.createdAt)}</span>
+                      <strong>{t("session.createdAt")}</strong>
+                      <span>{formatTime(activeAnnotation.createdAt, locale)}</span>
                     </div>
                     <div className="dl-detail-kv">
-                      <strong>最后更新</strong>
-                      <span>{formatTime(activeAnnotation.updatedAt)}</span>
+                      <strong>{t("session.updatedAt")}</strong>
+                      <span>{formatTime(activeAnnotation.updatedAt, locale)}</span>
                     </div>
                     {getAnnotationKind(activeAnnotation) === "area" ? (
                       <div className="dl-detail-kv">
-                        <strong>区域尺寸</strong>
+                        <strong>{t("session.areaSize")}</strong>
                         <span>
                           {Math.round(activeAnnotation.rect.width)} ×{" "}
                           {Math.round(activeAnnotation.rect.height)}
@@ -232,12 +235,12 @@ export function SessionPanel({
                     ) : null}
                     {getAnnotationKind(activeAnnotation) === "area" ? (
                       <div className="dl-detail-kv">
-                        <strong>命中数量</strong>
+                        <strong>{t("session.matchCount")}</strong>
                         <span>
                           {activeAnnotation.matchCount ||
                             activeAnnotation.relatedElements?.length ||
                             0}{" "}
-                          个元素
+                          {t("session.elementUnit")}
                         </span>
                       </div>
                     ) : null}
@@ -245,14 +248,14 @@ export function SessionPanel({
                 </div>
 
                 <div className="dl-detail-card">
-                  <h4 className="dl-detail-title">动作</h4>
+                  <h4 className="dl-detail-title">{t("session.actions")}</h4>
                   <div className="dl-detail-actions">
                     <button
                       className="dl-popup-action"
                       data-kind="primary"
                       onClick={() => onOpenAnnotationEditor(activeAnnotation)}
                     >
-                      编辑标注
+                      {t("session.edit")}
                     </button>
                     {activeAnnotation.status === "pending" ? (
                       <button
@@ -262,7 +265,7 @@ export function SessionPanel({
                           onSetAnnotationStatus(activeAnnotation.id, "acknowledged")
                         }
                       >
-                        标记处理中
+                        {t("session.markAcknowledged")}
                       </button>
                     ) : null}
                     {activeAnnotation.status === "acknowledged" ? (
@@ -273,7 +276,7 @@ export function SessionPanel({
                           onSetAnnotationStatus(activeAnnotation.id, "pending")
                         }
                       >
-                        重新设为待处理
+                        {t("session.reopen")}
                       </button>
                     ) : null}
                     <button
@@ -283,7 +286,7 @@ export function SessionPanel({
                         onSetAnnotationStatus(activeAnnotation.id, "resolved")
                       }
                     >
-                      解决并移除
+                      {t("session.resolve")}
                     </button>
                     <button
                       className="dl-popup-action"
@@ -292,22 +295,21 @@ export function SessionPanel({
                         onSetAnnotationStatus(activeAnnotation.id, "dismissed")
                       }
                     >
-                      忽略并移除
+                      {t("session.dismiss")}
                     </button>
                     <button
                       className="dl-popup-action"
                       data-kind="danger"
                       onClick={() => onDeleteAnnotation(activeAnnotation)}
                     >
-                      删除标注
+                      {t("session.delete")}
                     </button>
                   </div>
                 </div>
               </>
             ) : (
               <div className="dl-detail-empty">
-                先从左侧列表里选择一条标注。后续这里会继续接 Claude /
-                Cursor 的回复、状态流转和源码命中信息。
+                {t("session.emptyDetail")}
               </div>
             )}
           </div>

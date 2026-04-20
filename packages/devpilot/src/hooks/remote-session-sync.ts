@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type
 
 import { mergeRemoteAnnotations } from "../annotation/state";
 import { mergeRemoteRepairRequests } from "../repair/state";
-import { mergeRemoteStabilityItems } from "../stability/state";
 import { clearSessionId, loadSessionId, saveSessionId } from "../storage";
 import {
   deleteRemoteAnnotation,
@@ -42,7 +41,6 @@ type UseRemoteSessionSyncArgs = {
   stabilityItems: DevPilotStabilityItem[];
   pendingDeletedAnnotationIdsRef: MutableRefObject<Set<string>>;
   setAnnotations: Dispatch<SetStateAction<DevPilotAnnotation[]>>;
-  setStabilityItems: Dispatch<SetStateAction<DevPilotStabilityItem[]>>;
   setRepairRequests: Dispatch<SetStateAction<DevPilotRepairRequestRecord[]>>;
   annotationsRef?: MutableRefObject<DevPilotAnnotation[]>;
   currentSessionIdRef?: MutableRefObject<string | null>;
@@ -69,7 +67,6 @@ export function useRemoteSessionSync({
   stabilityItems,
   pendingDeletedAnnotationIdsRef,
   setAnnotations,
-  setStabilityItems,
   setRepairRequests,
   annotationsRef: externalAnnotationsRef,
   currentSessionIdRef: externalCurrentSessionIdRef,
@@ -175,11 +172,8 @@ export function useRemoteSessionSync({
         mergeIfChanged(current, mergeRemoteAnnotations(current, visibleRemoteAnnotations)),
       );
 
-      if (stabilityEnabled) {
-        setStabilityItems((current) =>
-          mergeIfChanged(current, mergeRemoteStabilityItems(current, remoteSession.stabilityItems)),
-        );
-      }
+      // Stability items are ephemeral (memory-only per page session).
+      // Do NOT restore historical stability items from remote on refresh.
 
       setRepairRequests((current) =>
         mergeIfChanged(current, mergeRemoteRepairRequests(current, remoteSession.repairRequests || [])),
@@ -357,7 +351,6 @@ export function useRemoteSessionSync({
     currentSessionId,
     setAnnotations,
     setRepairRequests,
-    setStabilityItems,
     stabilityEnabled,
     syncEndpoint,
   ]);

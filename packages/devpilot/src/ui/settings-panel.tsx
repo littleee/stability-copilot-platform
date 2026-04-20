@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 
+import { useI18n } from "../i18n";
+import type { DevPilotLocale } from "../i18n/dict";
 import { CollapseIcon } from "./icons";
 
 type SseStatus = "disabled" | "connecting" | "connected" | "reconnecting";
@@ -13,19 +15,6 @@ interface SettingsPanelProps {
   stabilityCopilotEnabled: boolean;
   onToggleStabilityCopilot: () => void;
   onClose: () => void;
-}
-
-function getSseLabel(status: SseStatus): string {
-  switch (status) {
-    case "connected":
-      return "已连接";
-    case "reconnecting":
-      return "重连中";
-    case "connecting":
-      return "连接中";
-    default:
-      return "未启用";
-  }
 }
 
 function getLanguageName(language: string): string {
@@ -64,11 +53,29 @@ export function SettingsPanel({
   onToggleStabilityCopilot,
   onClose,
 }: SettingsPanelProps) {
+  const { t, locale, setLocale } = useI18n();
+  const [languageOpen, setLanguageOpen] = useState(false);
+  const languageRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (languageRef.current && !languageRef.current.contains(event.target as Node)) {
+        setLanguageOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const mcpStatus = syncEndpoint ? "connected" : "disabled";
-  const mcpLabel = syncEndpoint ? "协作模式" : "本地模式";
+  const mcpLabel = syncEndpoint ? t("settings.collabMode") : t("settings.localMode");
   const browserLanguage =
     typeof navigator === "undefined" ? "zh-CN" : navigator.language || "zh-CN";
-  const languageLabel = `${getLanguageName(browserLanguage)} (${browserLanguage})`;
+
+  const languageOptions: { value: DevPilotLocale; label: string }[] = [
+    { value: "zh-CN", label: t("settings.language.zhCN") },
+    { value: "en-US", label: t("settings.language.enUS") },
+  ];
 
   return (
     <section
@@ -77,13 +84,13 @@ export function SettingsPanel({
     >
       <div className="dl-session-header">
         <div className="dl-session-header-main">
-          <h3 className="dl-session-title">设置</h3>
+          <h3 className="dl-session-title">{t("settings.title")}</h3>
         </div>
         <button
           className="dl-toolbar-icon-button"
           data-kind="secondary"
           onClick={onClose}
-          title="关闭设置"
+          title={t("settings.close")}
         >
           <CollapseIcon />
         </button>
@@ -92,14 +99,41 @@ export function SettingsPanel({
       <div className="dl-session-body">
         <div className="dl-session-section">
           <div className="dl-session-section-header">
-            <h4 className="dl-session-section-title">偏好</h4>
+            <h4 className="dl-session-section-title">{t("settings.preferences")}</h4>
           </div>
           <div className="dl-session-detail">
             <div className="dl-detail-card">
               <div className="dl-settings-row">
                 <div className="dl-settings-main">
-                  <span className="dl-settings-name">界面语言</span>
-                  <span className="dl-settings-value">当前跟随浏览器：{languageLabel}</span>
+                  <span className="dl-settings-name">{t("settings.language")}</span>
+                  <div className="dl-language-select" ref={languageRef}>
+                    <button
+                      className="dl-language-select-trigger"
+                      onClick={() => setLanguageOpen((prev) => !prev)}
+                    >
+                      {languageOptions.find((opt) => opt.value === locale)?.label ?? locale}
+                      <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                        <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                    {languageOpen ? (
+                      <div className="dl-language-select-dropdown">
+                        {languageOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            className={`dl-language-select-option${option.value === locale ? " dl-language-select-option-active" : ""}`}
+                            onClick={() => {
+                              setLocale(option.value);
+                              setLanguageOpen(false);
+                            }}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <span className="dl-settings-value">{getLanguageName(browserLanguage)} ({browserLanguage})</span>
                 </div>
               </div>
             </div>
@@ -108,12 +142,12 @@ export function SettingsPanel({
 
         <div className="dl-session-section">
           <div className="dl-session-section-header">
-            <h4 className="dl-session-section-title">功能</h4>
+            <h4 className="dl-session-section-title">{t("settings.features")}</h4>
           </div>
           <div className="dl-session-detail">
             <div className="dl-detail-card">
-              <label className="dl-settings-row dl-settings-switch-row" title="开启后将自动捕获 JS 异常、Promise 拒绝和接口失败">
-                <span className="dl-settings-name">稳定性副驾</span>
+              <label className="dl-settings-row dl-settings-switch-row" title={t("settings.stabilityTooltip")}>
+                <span className="dl-settings-name">{t("settings.stabilityCopilot")}</span>
                 <span className="dl-switch">
                   <input
                     type="checkbox"
@@ -131,13 +165,13 @@ export function SettingsPanel({
 
         <div className="dl-session-section">
           <div className="dl-session-section-header">
-            <h4 className="dl-session-section-title">连接</h4>
+            <h4 className="dl-session-section-title">{t("settings.connection")}</h4>
           </div>
           <div className="dl-session-detail">
             <div className="dl-detail-card">
               <div className="dl-settings-row">
                 <div className="dl-settings-main">
-                  <span className="dl-settings-name">MCP</span>
+                  <span className="dl-settings-name">{t("settings.mcp")}</span>
                   <span className="dl-settings-value">{mcpLabel}</span>
                 </div>
                 <span
@@ -148,8 +182,16 @@ export function SettingsPanel({
               </div>
               <div className="dl-settings-row">
                 <div className="dl-settings-main">
-                  <span className="dl-settings-name">SSE</span>
-                  <span className="dl-settings-value">{getSseLabel(sseStatus)}</span>
+                  <span className="dl-settings-name">{t("settings.sse")}</span>
+                  <span className="dl-settings-value">
+                    {sseStatus === "connected"
+                      ? t("settings.sseConnected")
+                      : sseStatus === "reconnecting"
+                        ? t("settings.sseReconnecting")
+                        : sseStatus === "connecting"
+                          ? t("settings.sseConnecting")
+                          : t("settings.sseDisabled")}
+                  </span>
                 </div>
                 <span
                   className="dl-settings-indicator"
@@ -162,12 +204,12 @@ export function SettingsPanel({
             <div className="dl-detail-card">
               <div className="dl-detail-meta">
                 <div className="dl-detail-kv" style={{ gridColumn: "1 / -1" }}>
-                  <strong>Endpoint</strong>
-                  <span>{syncEndpoint || "未配置"}</span>
+                  <strong>{t("settings.endpoint")}</strong>
+                  <span>{syncEndpoint || t("settings.notConfigured")}</span>
                 </div>
                 <div className="dl-detail-kv" style={{ gridColumn: "1 / -1" }}>
-                  <strong>Session</strong>
-                  <span>{sessionId || "未建立"}</span>
+                  <strong>{t("settings.session")}</strong>
+                  <span>{sessionId || t("settings.notEstablished")}</span>
                 </div>
               </div>
             </div>

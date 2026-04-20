@@ -55,6 +55,7 @@ export function DevPilot(props: DevPilotMountOptions): null {
     props.endpoint,
     props.features?.stability,
     props.features?.mcp,
+    props.locale,
     props.onAnnotationAdd,
     props.onAnnotationUpdate,
     props.onAnnotationDelete,

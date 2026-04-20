@@ -3,19 +3,21 @@ import {
   type DevPilotAnnotation,
   type DevPilotAnnotationStatus,
 } from "../types";
+import type { I18nContextValue } from "../i18n/context";
 
 export function getAnnotationStatusLabel(
   status: DevPilotAnnotationStatus,
+  t: I18nContextValue["t"],
 ): string {
   switch (status) {
     case "acknowledged":
-      return "处理中";
+      return t("annotation.acknowledged");
     case "resolved":
-      return "已解决";
+      return t("annotation.resolved");
     case "dismissed":
-      return "已忽略";
+      return t("annotation.dismissed");
     default:
-      return "待处理";
+      return t("annotation.pending");
   }
 }
 

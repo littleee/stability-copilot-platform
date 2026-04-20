@@ -3,6 +3,8 @@ import type {
   DevPilotRepairRequest,
 } from "./repair";
 
+export type DevPilotLocale = "zh-CN" | "en-US";
+
 export type DevPilotMode = "annotate" | "stability";
 
 export type DevPilotSelectionKind = "element" | "text" | "area";
@@ -88,6 +90,7 @@ export interface DevPilotMountOptions {
   endpoint?: string;
   defaultOpen?: boolean;
   features?: DevPilotFeatureFlags;
+  locale?: DevPilotLocale;
   onAnnotationAdd?: (annotation: DevPilotAnnotation) => void;
   onAnnotationUpdate?: (annotation: DevPilotAnnotation) => void;
   onAnnotationDelete?: (annotationId: string) => void;

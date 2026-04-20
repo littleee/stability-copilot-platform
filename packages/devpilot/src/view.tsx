@@ -7,6 +7,8 @@ import {
   describeAreaDraftPreview,
 } from "./annotation/area-selection";
 import { getAnnotationKind } from "./output";
+import { I18nProvider, useI18n } from "./i18n";
+import { isDevPilotLocale, type DevPilotLocale } from "./i18n/dict";
 import { useRemoteSessionSync } from "./hooks/remote-session-sync";
 import { useAnnotations } from "./hooks/use-annotations";
 import { useStability } from "./hooks/use-stability";
@@ -22,6 +24,8 @@ import {
   saveFloatingPosition,
   loadStabilityCopilotEnabled,
   saveStabilityCopilotEnabled,
+  loadLocale,
+  saveLocale,
 } from "./storage";
 import {
   AnnotateIcon,
@@ -47,7 +51,7 @@ function stopEditableEventPropagation(event: React.SyntheticEvent<HTMLElement>):
   event.stopPropagation();
 }
 
-function DevPilotApp({
+function DevPilotContent({
   defaultOpen = false,
   endpoint,
   features,
@@ -60,6 +64,7 @@ function DevPilotApp({
   onConnectionStateChange,
   onRepairRequest,
 }: DevPilotMountOptions) {
+  const { t } = useI18n();
   const pathname = window.location.pathname || "/";
   const resolvedFeatures = useMemo(
     () => resolveDevPilotFeatures(features, endpoint),
@@ -129,7 +134,6 @@ function DevPilotApp({
     stabilityItems: stabilityHook.stabilityItems,
     pendingDeletedAnnotationIdsRef: annotationsHook.pendingDeletedAnnotationIdsRef,
     setAnnotations: annotationsHook.setAnnotations,
-    setStabilityItems: stabilityHook.setStabilityItems,
     setRepairRequests: stabilityHook.setRepairRequests,
     annotationsRef,
     currentSessionIdRef,
@@ -361,7 +365,7 @@ function DevPilotApp({
           >
             {Math.round(areaSelection.areaDraftRect.width)}×
             {Math.round(areaSelection.areaDraftRect.height)}
-            {areaDraftPreview?.matchCount ? ` · ${areaDraftPreview.matchCount} 个元素` : ""}
+            {areaDraftPreview?.matchCount ? ` · ${areaDraftPreview.matchCount} ${t("area.elements")}` : ""}
           </div>
         </>
       ) : null}
@@ -437,7 +441,7 @@ function DevPilotApp({
           data-pending="true"
           style={annotationsHook.pendingMarkerStyle}
           title={
-            annotationsHook.selection.kind === "area" ? "待提交区域标注" : "待提交标注"
+            annotationsHook.selection.kind === "area" ? t("area.pendingArea") : t("area.pending")
           }
         >
           {annotationsHook.selection.kind === "area" ? (
@@ -480,17 +484,17 @@ function DevPilotApp({
           <div className="dl-popup-header">
             <h3 className="dl-popup-title">
               {annotationsHook.editingId
-                ? "编辑标注"
+                ? t("popup.editAnnotation")
                 : annotationsHook.selection.kind === "area"
-                  ? "添加区域标注"
-                  : "添加标注"}
+                  ? t("popup.addAreaAnnotation")
+                  : t("popup.addAnnotation")}
             </h3>
-            <span className="dl-popup-hint">Cmd/Ctrl + Enter</span>
+            <span className="dl-popup-hint">{t("popup.keyboardHint")}</span>
           </div>
           <span className="dl-popup-section-label">
             {annotationsHook.selection.kind === "area"
-              ? `选中区域 · ${annotationsHook.selection.matchCount || annotationsHook.selection.relatedElements?.length || 0} 个元素`
-              : "当前元素"}
+              ? `${t("popup.selectedArea")} · ${annotationsHook.selection.matchCount || annotationsHook.selection.relatedElements?.length || 0} ${t("popup.elementCount")}`
+              : t("popup.currentElement")}
           </span>
           <p className="dl-popup-meta">
             {annotationsHook.selection.elementName}
@@ -515,8 +519,8 @@ function DevPilotApp({
             className="dl-popup-textarea"
             placeholder={
               annotationsHook.selection.kind === "area"
-                ? "描述这个区域或多个组件需要修改什么"
-                : "描述这个页面元素需要修改什么"
+                ? t("popup.placeholderArea")
+                : t("popup.placeholderElement")
             }
             value={annotationsHook.draft}
             onChange={(event) => annotationsHook.setDraft(event.target.value)}
@@ -550,7 +554,7 @@ function DevPilotApp({
                   annotationsHook.setDraft("");
                 }}
               >
-                取消
+                {t("popup.cancel")}
               </button>
               {annotationsHook.editingId ? (
                 <button
@@ -558,7 +562,7 @@ function DevPilotApp({
                   data-kind="danger"
                   onClick={annotationsHook.handleDelete}
                 >
-                  删除
+                  {t("popup.delete")}
                 </button>
               ) : null}
             </div>
@@ -568,7 +572,7 @@ function DevPilotApp({
                 data-kind="primary"
                 onClick={annotationsHook.handleSave}
               >
-                {annotationsHook.editingId ? "保存" : "添加"}
+                {annotationsHook.editingId ? t("popup.save") : t("popup.add")}
               </button>
             </div>
           </div>
@@ -609,7 +613,7 @@ function DevPilotApp({
               if (!node) return;
               drag.startDragging(event, node.getBoundingClientRect());
             }}
-            title="拖拽工具条"
+            title={t("toolbar.dragHandle")}
           >
             <DevPilotGlyph />
           </span>
@@ -648,7 +652,7 @@ function DevPilotApp({
             onClick={() => {
               void annotationsHook.handleCopyTaskPacket(stabilityHook.openStabilityItems);
             }}
-            title={annotationsHook.copyState === "copied" ? "已复制" : "复制给 AI"}
+            title={annotationsHook.copyState === "copied" ? t("toolbar.copied") : t("toolbar.copyToAI")}
           >
             {annotationsHook.copyState === "copied" ? <CheckIcon /> : <CopyIcon />}
           </button>
@@ -657,7 +661,7 @@ function DevPilotApp({
             data-kind="secondary"
             data-active={isSettingsOpen}
             onClick={toggleSettingsPanel}
-            title={isConnectionDisconnected ? "连接已断开" : "设置"}
+            title={isConnectionDisconnected ? t("toolbar.connectionLost") : t("toolbar.settings")}
           >
             <SettingsIcon />
             {isConnectionDisconnected ? (
@@ -672,7 +676,7 @@ function DevPilotApp({
               setIsSettingsOpen(false);
               setIsOpen(false);
             }}
-            title="收起"
+            title={t("toolbar.collapse")}
           >
             <CollapseIcon />
           </button>
@@ -696,7 +700,7 @@ function DevPilotApp({
             if (!node) return;
             drag.startDragging(event, node.getBoundingClientRect());
           }}
-          title="打开 DevPilot"
+          title={t("toolbar.openDevPilot")}
         >
           <DevPilotGlyph />
           {annotationsHook.summary.open + stabilityHook.openStabilityItems.length > 0 ? (
@@ -743,6 +747,30 @@ export function createDevPilotStyleElement(): HTMLStyleElement {
   const style = document.createElement("style");
   style.textContent = styles;
   return style;
+}
+
+function DevPilotApp({ locale: propLocale, ...props }: DevPilotMountOptions) {
+  const [locale, setLocale] = useState<DevPilotLocale>(() => {
+    if (isDevPilotLocale(propLocale)) return propLocale;
+    const saved = loadLocale();
+    return isDevPilotLocale(saved) ? saved : "zh-CN";
+  });
+
+  useEffect(() => {
+    if (isDevPilotLocale(propLocale) && propLocale !== locale) {
+      setLocale(propLocale);
+    }
+  }, [propLocale]);
+
+  useEffect(() => {
+    saveLocale(locale);
+  }, [locale]);
+
+  return (
+    <I18nProvider locale={locale} setLocale={setLocale}>
+      <DevPilotContent {...props} />
+    </I18nProvider>
+  );
 }
 
 export function DevPilotShell(props: DevPilotMountOptions) {
