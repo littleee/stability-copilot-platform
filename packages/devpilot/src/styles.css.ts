@@ -8,8 +8,10 @@ export const styles = `
     inset: 0;
     z-index: 2147483600;
     pointer-events: none;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Segoe UI", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "SF Pro Display", "Segoe UI", sans-serif;
     color: #0f172a;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
   }
 
   .dl-toolbar {
