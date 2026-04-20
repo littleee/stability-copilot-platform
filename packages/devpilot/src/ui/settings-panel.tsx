@@ -17,32 +17,6 @@ interface SettingsPanelProps {
   onClose: () => void;
 }
 
-function getLanguageName(language: string): string {
-  const normalized = language.toLowerCase();
-
-  if (normalized.startsWith("zh-cn") || normalized.startsWith("zh-sg") || normalized === "zh") {
-    return "简体中文";
-  }
-
-  if (normalized.startsWith("zh-tw") || normalized.startsWith("zh-hk") || normalized.startsWith("zh-mo")) {
-    return "繁體中文";
-  }
-
-  if (normalized.startsWith("en")) {
-    return "English";
-  }
-
-  if (normalized.startsWith("ja")) {
-    return "日本語";
-  }
-
-  if (normalized.startsWith("ko")) {
-    return "한국어";
-  }
-
-  return language;
-}
-
 export function SettingsPanel({
   panelLeft,
   panelBottom,
@@ -70,8 +44,6 @@ export function SettingsPanel({
 
   const mcpStatus = syncEndpoint ? "connected" : "disabled";
   const mcpLabel = syncEndpoint ? t("settings.collabMode") : t("settings.localMode");
-  const browserLanguage =
-    typeof navigator === "undefined" ? "zh-CN" : navigator.language || "zh-CN";
 
   const languageOptions: { value: DevPilotLocale; label: string }[] = [
     { value: "zh-CN", label: t("settings.language.zhCN") },
@@ -134,7 +106,6 @@ export function SettingsPanel({
                       </div>
                     ) : null}
                   </div>
-                  <span className="dl-settings-value">{getLanguageName(browserLanguage)} ({browserLanguage})</span>
                 </div>
               </div>
             </div>
