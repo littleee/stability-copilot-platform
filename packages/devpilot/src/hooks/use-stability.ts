@@ -4,20 +4,12 @@ import {
   createDevPilotStabilityRepairPayload,
   formatDevPilotStabilityRepairMarkdown,
 } from "../stability-output";
-import {
-  DevPilotStabilityDraft,
-  getDefaultStabilityDraft,
-  sortStabilityItemsByUpdatedAt,
-} from "../stability/state";
+import { sortStabilityItemsByUpdatedAt } from "../stability/state";
 import {
   copyTextToClipboard,
   createScopedId,
   trimObservationText,
 } from "../shared/runtime";
-import {
-  loadStabilityItems,
-  saveStabilityItems,
-} from "../storage";
 import {
   createRemoteRepairRequest,
   deleteRemoteStabilityItem,
@@ -32,7 +24,7 @@ import type {
   DevPilotStabilitySeverity,
   DevPilotStabilityStatus,
 } from "../types";
-import { isDevPilotStabilitySeverity, isOpenDevPilotAnnotationStatus } from "../types";
+import { isOpenDevPilotAnnotationStatus } from "../types";
 import { mergeRemoteRepairRequests, sortRepairRequestsByUpdatedAt } from "../repair/state";
 
 const AUTO_OBSERVATION_DEDUPE_MS = 30_000;
@@ -66,15 +58,8 @@ export function useStability(options: UseStabilityOptions) {
     onNetworkError,
   } = options;
 
-  const [stabilityItems, setStabilityItems] = useState<DevPilotStabilityItem[]>(
-    () => (stabilityEnabled ? loadStabilityItems(pathname) : []),
-  );
-  const [stabilityEditingId, setStabilityEditingId] = useState<string | null>(null);
+  const [stabilityItems, setStabilityItems] = useState<DevPilotStabilityItem[]>([]);
   const [stabilityActiveId, setStabilityActiveId] = useState<string | null>(null);
-  const [stabilityDraft, setStabilityDraft] = useState<DevPilotStabilityDraft>(
-    getDefaultStabilityDraft,
-  );
-  const [isStabilityComposerOpen, setIsStabilityComposerOpen] = useState(false);
   const [stabilityCopyState, setStabilityCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const [repairRequests, setRepairRequests] = useState<DevPilotRepairRequestRecord[]>([]);
   const [repairTargetId, setRepairTargetId] = useState<string | null>(null);
@@ -83,20 +68,10 @@ export function useStability(options: UseStabilityOptions) {
 
   useEffect(() => {
     if (!stabilityEnabled) {
-      return;
-    }
-    saveStabilityItems(pathname, stabilityItems);
-  }, [pathname, stabilityEnabled, stabilityItems]);
-
-  useEffect(() => {
-    if (!stabilityEnabled) {
       setStabilityItems([]);
       setRepairRequests([]);
-      return;
+      setStabilityActiveId(null);
     }
-
-    setStabilityItems(loadStabilityItems(pathname));
-    setRepairRequests([]);
   }, [pathname, stabilityEnabled]);
 
   useEffect(() => {
@@ -203,34 +178,6 @@ export function useStability(options: UseStabilityOptions) {
       total: stabilityItems.length,
     };
   }, [stabilityItems]);
-
-  const resetStabilityComposer = () => {
-    setStabilityDraft(getDefaultStabilityDraft());
-    setStabilityEditingId(null);
-    setIsStabilityComposerOpen(false);
-  };
-
-  const openStabilityComposer = (item?: DevPilotStabilityItem) => {
-    if (!item) {
-      setStabilityDraft(getDefaultStabilityDraft());
-      setStabilityEditingId(null);
-      setIsStabilityComposerOpen(true);
-      return;
-    }
-
-    setStabilityDraft({
-      title: item.title,
-      severity: item.severity,
-      symptom: item.symptom,
-      reproSteps: item.reproSteps || "",
-      impact: item.impact || "",
-      signals: item.signals || "",
-      fixGoal: item.fixGoal || "",
-    });
-    setStabilityEditingId(item.id);
-    setStabilityActiveId(item.id);
-    setIsStabilityComposerOpen(true);
-  };
 
   const buildStabilityContext = () => ({
     capturedAt: Date.now(),
@@ -524,123 +471,11 @@ export function useStability(options: UseStabilityOptions) {
     }
   };
 
-  const handleSaveStabilityItem = () => {
-    if (!stabilityDraft.title.trim() || !stabilityDraft.symptom.trim()) {
-      return;
-    }
-
-    const now = Date.now();
-    const existing = stabilityEditingId
-      ? stabilityItems.find((item) => item.id === stabilityEditingId)
-      : null;
-    const nextItem: DevPilotStabilityItem = {
-      id: stabilityEditingId || `sti_${createScopedId("id")}`,
-      sessionId: existing?.sessionId || currentSessionId || undefined,
-      pathname,
-      createdAt: existing?.createdAt || now,
-      updatedAt: now,
-      status: existing?.status || "open",
-      severity: isDevPilotStabilitySeverity(stabilityDraft.severity)
-        ? stabilityDraft.severity
-        : "high",
-      title: stabilityDraft.title.trim(),
-      symptom: stabilityDraft.symptom.trim(),
-      reproSteps: stabilityDraft.reproSteps.trim() || undefined,
-      impact: stabilityDraft.impact.trim() || undefined,
-      signals: stabilityDraft.signals.trim() || undefined,
-      fixGoal: stabilityDraft.fixGoal.trim() || undefined,
-      context: buildStabilityContext(),
-    };
-
-    setStabilityItems((current) => {
-      const next = stabilityEditingId
-        ? current.map((item) => (item.id === stabilityEditingId ? nextItem : item))
-        : [nextItem, ...current];
-      return sortStabilityItemsByUpdatedAt(next);
-    });
-    setStabilityActiveId(nextItem.id);
-
-    if (stabilityEditingId) {
-      onStabilityStatusChange?.(nextItem);
-    } else {
-      onStabilityObserved?.(nextItem);
-    }
-
-    if (syncEndpoint && currentSessionId) {
-      const syncPromise = stabilityEditingId
-        ? updateRemoteStabilityItem(syncEndpoint, nextItem.id, nextItem)
-        : syncRemoteStabilityItem(syncEndpoint, currentSessionId, nextItem);
-      syncPromise.catch((error) => {
-        const message = "[DevPilot] Failed to sync stability item";
-        console.warn(message, error);
-        onNetworkError?.(message);
-      });
-    }
-
-    resetStabilityComposer();
-  };
-
-  const handleDeleteStabilityItem = () => {
-    if (!stabilityEditingId) {
-      resetStabilityComposer();
-      return;
-    }
-
-    setStabilityItems((current) => current.filter((item) => item.id !== stabilityEditingId));
-
-    if (stabilityActiveId === stabilityEditingId) {
-      setStabilityActiveId(null);
-    }
-
-    if (syncEndpoint) {
-      deleteRemoteStabilityItem(syncEndpoint, stabilityEditingId).catch((error) => {
-        const message = "[DevPilot] Failed to delete stability item";
-        console.warn(message, error);
-        onNetworkError?.(message);
-      });
-    }
-
-    resetStabilityComposer();
-  };
-
-  const handleDeleteStabilityItemRecord = (item: DevPilotStabilityItem) => {
-    setStabilityItems((current) => current.filter((entry) => entry.id !== item.id));
-    if (stabilityActiveId === item.id) {
-      setStabilityActiveId(null);
-    }
-    if (stabilityEditingId === item.id) {
-      resetStabilityComposer();
-    }
-    if (syncEndpoint) {
-      deleteRemoteStabilityItem(syncEndpoint, item.id).catch((error) => {
-        const message = "[DevPilot] Failed to delete stability item";
-        console.warn(message, error);
-        onNetworkError?.(message);
-      });
-    }
-  };
-
-  const handleStabilityDraftChange = (
-    field: keyof DevPilotStabilityDraft,
-    value: string | DevPilotStabilitySeverity,
-  ) => {
-    setStabilityDraft((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
-
   return {
     stabilityItems,
     setStabilityItems,
-    stabilityEditingId,
-    setStabilityEditingId,
     stabilityActiveId,
     setStabilityActiveId,
-    stabilityDraft,
-    setStabilityDraft,
-    isStabilityComposerOpen,
-    setIsStabilityComposerOpen,
     stabilityCopyState,
     setStabilityCopyState,
     repairRequests,
@@ -656,17 +491,11 @@ export function useStability(options: UseStabilityOptions) {
     stabilitySummary,
     activeRepairRequests,
     latestActiveRepairRequest,
-    resetStabilityComposer,
-    openStabilityComposer,
     buildStabilityContext,
     buildObservationContext,
     recordObservedStabilityItem,
     handleCopyStabilityItems,
     handleRequestStabilityRepair,
     setStabilityItemStatus,
-    handleSaveStabilityItem,
-    handleDeleteStabilityItem,
-    handleDeleteStabilityItemRecord,
-    handleStabilityDraftChange,
   };
 }

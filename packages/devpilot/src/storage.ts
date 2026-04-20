@@ -3,15 +3,9 @@ import {
   isOpenDevPilotAnnotationStatus,
   type DevPilotAnnotation,
   type DevPilotAnnotationStatus,
-  isDevPilotStabilitySeverity,
-  isDevPilotStabilityStatus,
-  type DevPilotStabilityItem,
-  type DevPilotStabilitySeverity,
-  type DevPilotStabilityStatus,
 } from "./types";
 
 const ANNOTATION_PREFIX = "devpilot.annotations:";
-const STABILITY_PREFIX = "devpilot.stability:";
 const STABILITY_COPILOT_KEY = "devpilot.stability-copilot";
 const POSITION_KEY = "devpilot.position";
 const SESSION_PREFIX = "devpilot.session:";
@@ -38,41 +32,8 @@ function getAnnotationKey(pathname: string): string {
   return `${ANNOTATION_PREFIX}${pathname}`;
 }
 
-function getStabilityKey(pathname: string): string {
-  return `${STABILITY_PREFIX}${pathname}`;
-}
-
 function getSessionKey(pathname: string): string {
   return `${SESSION_PREFIX}${pathname}`;
-}
-
-function normalizeStabilityStatus(value: unknown): DevPilotStabilityStatus {
-  return isDevPilotStabilityStatus(value) ? value : "open";
-}
-
-function normalizeStabilitySeverity(value: unknown): DevPilotStabilitySeverity {
-  return isDevPilotStabilitySeverity(value) ? value : "high";
-}
-
-function normalizeStabilityItem(
-  item: DevPilotStabilityItem,
-): DevPilotStabilityItem {
-  return {
-    ...item,
-    status: normalizeStabilityStatus(item.status),
-    severity: normalizeStabilitySeverity(item.severity),
-    context: {
-      ...item.context,
-      openAnnotationComments: Array.isArray(item.context?.openAnnotationComments)
-        ? item.context.openAnnotationComments.filter((entry) => typeof entry === "string")
-        : [],
-      openAnnotationSummaries: Array.isArray(item.context?.openAnnotationSummaries)
-        ? item.context.openAnnotationSummaries.filter(
-            (entry) => typeof entry === "object" && entry !== null,
-          )
-        : [],
-    },
-  };
 }
 
 export function loadAnnotations(pathname: string): DevPilotAnnotation[] {
@@ -110,38 +71,6 @@ export function saveAnnotations(pathname: string, annotations: DevPilotAnnotatio
         ),
       ),
     );
-  } catch {
-    // Ignore localStorage failures.
-  }
-}
-
-export function loadStabilityItems(pathname: string): DevPilotStabilityItem[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(getStabilityKey(pathname));
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as DevPilotStabilityItem[];
-    return Array.isArray(parsed) ? parsed.map(normalizeStabilityItem) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveStabilityItems(
-  pathname: string,
-  items: DevPilotStabilityItem[],
-): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(getStabilityKey(pathname), JSON.stringify(items));
   } catch {
     // Ignore localStorage failures.
   }
