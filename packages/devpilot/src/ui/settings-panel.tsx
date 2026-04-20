@@ -59,7 +59,8 @@ export function SettingsPanel({
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (languageRef.current && !languageRef.current.contains(event.target as Node)) {
+      const path = event.composedPath();
+      if (languageRef.current && !path.includes(languageRef.current)) {
         setLanguageOpen(false);
       }
     }
