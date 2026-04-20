@@ -1101,11 +1101,22 @@ export const styles = `
     color: rgba(255, 255, 255, 0.5);
   }
 
+  .dl-detail-kv {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
   .dl-detail-kv strong {
     display: block;
     margin-bottom: 4px;
     color: rgba(255, 255, 255, 0.88);
     font-size: 12px;
+  }
+
+  .dl-detail-kv span {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .dl-detail-actions {
